@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Ops — Nick Newhart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0a;--bg2:#111;--bg3:#181818;--bg4:#222;
+  --border:#252525;--border2:#333;
+  --green:#4ade80;--green-bg:#052e16;--green-border:#166534;
+  --yellow:#facc15;--yellow-bg:#1a1000;--yellow-border:#713f12;
+  --red:#f87171;--red-bg:#1a0000;--red-border:#7f1d1d;
+  --blue:#60a5fa;--blue-bg:#0c1f3a;--blue-border:#1e3a5f;
+  --text:#f0f0f0;--text2:#888;--text3:#444;
+  --mono:'Geist Mono',monospace;--sans:'DM Sans',sans-serif;
+  --r:8px;--r2:12px;
+}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+
+/* ── SETUP ── */
+#setup{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.setup-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:36px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:20px}
+.setup-logo{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--green);letter-spacing:0.08em}
+.setup-sub{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:0.1em;margin-top:3px}
+.setup-desc{font-size:14px;color:var(--text2);line-height:1.65}
+.setup-desc a{color:var(--green);text-decoration:none}
+.setup-desc a:hover{text-decoration:underline}
+
+/* ── APP ── */
+#app{display:none;flex-direction:column;min-height:100vh}
+header{height:52px;border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;background:var(--bg);position:sticky;top:0;z-index:100}
+.logo{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--green);letter-spacing:0.1em}
+.logo span{color:var(--text3);font-weight:400}
+.header-right{display:flex;align-items:center;gap:12px}
+.api-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px}
+.api-label{font-family:var(--mono);font-size:10px;color:var(--text3)}
+
+.main{flex:1;display:flex;overflow:hidden}
+
+/* ── NAV ── */
+nav{display:flex;gap:2px}
+.nav-btn{font-family:var(--mono);font-size:10px;font-weight:500;padding:5px 11px;border-radius:var(--r);border:none;background:transparent;color:var(--text2);cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;transition:all 0.15s}
+.nav-btn:hover{color:var(--text);background:var(--bg3)}
+.nav-btn.on{color:var(--green);background:var(--bg3)}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;min-width:220px;border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:6px;overflow-y:auto}
+.slab{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;padding:0 6px;margin-bottom:2px}
+.hist-item{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:var(--r);border:1px solid var(--border);cursor:pointer;transition:all 0.15s;background:var(--bg2)}
+.hist-item:hover{border-color:var(--border2);background:var(--bg3)}
+.hist-item.on{border-color:var(--green-border);background:var(--green-bg)}
+.hgrade{font-family:var(--mono);font-size:11px;font-weight:600;width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hA{background:#052e16;color:#4ade80}.hB{background:#1c3a08;color:#86efac}
+.hC{background:#1a1000;color:#facc15}.hD{background:#1a0800;color:#fb923c}
+.hF{background:#1a0000;color:#f87171}
+.htitle{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.hco{font-family:var(--mono);font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.no-hist{font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center;padding:16px 0}
+
+/* ── CONTENT ── */
+.content{flex:1;padding:24px 28px;overflow-y:auto}
+.panel{display:none;flex-direction:column;gap:16px}
+.panel.on{display:flex}
+
+/* ── FORMS ── */
+.field{display:flex;flex-direction:column}
+label.fl{font-family:var(--mono);font-size:10px;font-weight:500;color:var(--text2);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:7px;display:block}
+textarea,input[type=text],input[type=password]{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--sans);font-size:13px;padding:10px 13px;outline:none;transition:border-color 0.15s;resize:vertical;line-height:1.65}
+textarea:focus,input:focus{border-color:var(--border2)}
+textarea::placeholder,input::placeholder{color:var(--text3)}
+select{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--sans);font-size:13px;padding:9px 12px;outline:none;transition:border-color 0.15s;cursor:pointer;-webkit-appearance:none;appearance:none}
+select:focus{border-color:var(--border2)}
+
+/* ── BUTTONS ── */
+.btn{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;padding:9px 18px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.btn:hover{background:var(--bg4);border-color:var(--border2)}
+.btn:active{transform:scale(0.98)}
+.btn-primary{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.btn-primary:hover{background:#064820}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.btn-sm{font-size:10px;padding:5px 11px}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--text3)}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2);background:transparent}
+.row-end{display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.row{display:flex;gap:10px}
+
+/* ── SCORE ── */
+.score-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:18px;display:flex;flex-direction:column;gap:14px}
+.sc-top{display:flex;align-items:center;gap:12px}
+.sc-badge{font-family:var(--mono);font-size:28px;font-weight:600;width:58px;height:58px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bA{background:#052e16;color:#4ade80;border:1px solid #166534}
+.bB{background:#1c3a08;color:#86efac;border:1px solid #166534}
+.bC{background:#1a1000;color:#facc15;border:1px solid #713f12}
+.bD{background:#1a0800;color:#fb923c;border:1px solid #7c2d12}
+.bF{background:#1a0000;color:#f87171;border:1px solid #7f1d1d}
+.sc-role{font-size:16px;font-weight:500;color:var(--text);line-height:1.3;margin-bottom:3px}
+.sc-co{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.verdict-pill{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:0.1em;padding:3px 9px;border-radius:4px}
+.vAPPLY{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.vMAYBE{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border)}
+.vSKIP{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+
+.dims{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dim{background:var(--bg3);border-radius:var(--r);padding:10px 12px}
+.dname{font-size:12px;color:var(--text2);margin-bottom:7px}
+.dnote{font-size:10px;color:var(--text3);margin-top:4px;font-style:italic}
+.dbar-row{display:flex;align-items:center;gap:7px}
+.dbar{flex:1;height:3px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.dfill{height:100%;border-radius:2px;transition:width 0.6s ease}
+.dhi{background:var(--green)}.dmid{background:var(--yellow)}.dlo{background:var(--red)}
+.dpct{font-family:var(--mono);font-size:10px;color:var(--text3);min-width:24px;text-align:right}
+
+.pill-row{display:flex;flex-wrap:wrap;gap:5px}
+.pill{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:4px;font-weight:500}
+.pg{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.pr{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.pb{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+
+.sc-summary{font-size:13px;line-height:1.7;color:var(--text2);border-top:1px solid var(--border);padding-top:13px}
+
+.sdiv{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:8px}
+
+/* ── LOADING ── */
+.loader{display:none;flex-direction:column;gap:7px}
+.loader.on{display:flex}
+.ltext{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:0.06em}
+.lbar{height:2px;background:var(--bg4);border-radius:1px;overflow:hidden}
+.lfill{height:100%;width:30%;background:var(--green);border-radius:1px;animation:lp 1.5s ease-in-out infinite}
+@keyframes lp{0%{transform:translateX(-200%)}100%{transform:translateX(500%)}}
+
+/* ── OUTPUT ── */
+.out-wrap{display:none;flex-direction:column;gap:8px}
+.out-wrap.on{display:flex}
+.out-head{display:flex;align-items:center;justify-content:space-between}
+.out-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;font-size:13px;line-height:1.75;color:var(--text);white-space:pre-wrap}
+
+/* ── GENERATE TABS ── */
+.gtabs{display:flex;gap:2px;background:var(--bg3);border-radius:var(--r);padding:3px;width:fit-content}
+.gtab{font-family:var(--mono);font-size:10px;padding:5px 13px;border-radius:6px;border:none;background:transparent;color:var(--text2);cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;transition:all 0.15s}
+.gtab.on{background:var(--bg2);color:var(--text)}
+.gtab:hover:not(.on){color:var(--text)}
+.gblock{display:none;flex-direction:column;gap:14px}
+.gblock.on{display:flex}
+
+/* ── Q SLOTS ── */
+.q-slot{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:13px;display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.q-top{display:flex;justify-content:space-between;align-items:center}
+.qn{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase}
+.qrm{font-family:var(--mono);font-size:10px;color:var(--text3);background:transparent;border:none;cursor:pointer;transition:color 0.15s}
+.qrm:hover{color:var(--red)}
+.add-q{font-family:var(--mono);font-size:10px;color:var(--text3);background:transparent;border:1px dashed var(--border);border-radius:var(--r);padding:9px;cursor:pointer;width:100%;text-align:center;letter-spacing:0.06em;transition:all 0.15s}
+.add-q:hover{color:var(--text2);border-color:var(--border2)}
+
+.hint{font-size:12px;color:var(--text3);line-height:1.55;margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="setup-card">
+    <div>
+      <div class="setup-logo">JOB-OPS</div>
+      <div class="setup-sub">Nick Newhart / Senior Product Designer</div>
+    </div>
+    <p class="setup-desc">Your AI-powered job application assistant. Evaluate fit, generate tailored cover letters and resume bullets, and answer application questions — all grounded in your real experience.</p>
+    <div class="field">
+      <label class="fl">Anthropic API Key</label>
+      <input type="password" id="api-input" placeholder="sk-ant-..." />
+      <p class="hint">Stored in localStorage only. Never sent anywhere except api.anthropic.com. Get yours at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</p>
+    </div>
+    <button class="btn btn-primary" onclick="launch()">Launch Job Ops →</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="logo">JOB-OPS <span>/ Nick Newhart</span></div>
+    <div class="header-right">
+      <div class="api-label"><span class="api-dot"></span>API connected</div>
+      <nav>
+        <button class="nav-btn on" onclick="sw('evaluate',this)">Evaluate</button>
+        <button class="nav-btn" onclick="sw('generate',this)">Generate</button>
+        <button class="nav-btn" onclick="sw('qa',this)">Q&A</button>
+      </nav>
+      <button class="btn btn-sm btn-ghost" onclick="resetKey()">Reset key</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="slab">History</div>
+      <div id="hist-list"><div class="no-hist">No evaluations yet</div></div>
+    </div>
+
+    <div class="content">
+
+      <!-- EVALUATE -->
+      <div class="panel on" id="panel-evaluate">
+        <div class="field">
+          <label class="fl">Job Description</label>
+          <textarea id="jd-in" rows="10" placeholder="Paste the full job description here. Include role title, company, responsibilities, requirements, location, and comp if listed."></textarea>
+        </div>
+        <div class="row-end">
+          <button class="btn btn-primary" id="eval-btn" onclick="evalJob()">Analyze role →</button>
+        </div>
+        <div class="loader" id="eval-load">
+          <div class="ltext">Analyzing fit against your profile...</div>
+          <div class="lbar"><div class="lfill"></div></div>
+        </div>
+        <div id="eval-result"></div>
+      </div>
+
+      <!-- GENERATE -->
+      <div class="panel" id="panel-generate">
+        <div class="gtabs">
+          <button class="gtab on" onclick="swG('cl',this)">Cover letter</button>
+          <button class="gtab" onclick="swG('rb',this)">Resume bullets</button>
+        </div>
+
+        <div class="gblock on" id="gen-cl">
+          <div class="field">
+            <label class="fl">Job Description</label>
+            <textarea id="gen-jd" rows="6" placeholder="Paste JD here, or select a role from history in the sidebar — it auto-fills."></textarea>
+          </div>
+          <div class="row">
+            <div class="field" style="flex:1">
+              <label class="fl">Tone</label>
+              <select id="tone">
+                <option value="direct">Direct and confident</option>
+                <option value="warm">Warm and collaborative</option>
+                <option value="technical">Technical and precise</option>
+                <option value="creative">Creative and energetic</option>
+              </select>
+            </div>
+            <div class="field" style="flex:1">
+              <label class="fl">Length</label>
+              <select id="length">
+                <option value="short">Short (3 paragraphs)</option>
+                <option value="standard" selected>Standard (4 paragraphs)</option>
+                <option value="detailed">Detailed (5 paragraphs)</option>
+              </select>
+            </div>
+          </div>
+          <div class="row-end">
+            <button class="btn btn-primary" id="cl-btn" onclick="genCL()">Generate cover letter →</button>
+          </div>
+          <div class="loader" id="cl-load">
+            <div class="ltext">Writing your cover letter...</div>
+            <div class="lbar"><div class="lfill"></div></div>
+          </div>
+          <div class="out-wrap" id="cl-wrap">
+            <div class="out-head">
+              <label class="fl" style="margin:0">Cover letter</label>
+              <button class="btn btn-sm btn-ghost" onclick="cp('cl-out')">Copy</button>
+            </div>
+            <div class="out-box" id="cl-out"></div>
+          </div>
+        </div>
+
+        <div class="gblock" id="gen-rb">
+          <div class="field">
+            <label class="fl">Job Description</label>
+            <textarea id="gen-jd-rb" rows="6" placeholder="Paste JD here, or select from history."></textarea>
+          </div>
+          <div class="row-end">
+            <button class="btn btn-primary" id="rb-btn" onclick="genRB()">Generate bullets →</button>
+          </div>
+          <div class="loader" id="rb-load">
+            <div class="ltext">Tailoring resume bullets...</div>
+            <div class="lbar"><div class="lfill"></div></div>
+          </div>
+          <div class="out-wrap" id="rb-wrap">
+            <div class="out-head">
+              <label class="fl" style="margin:0">Resume bullets</label>
+              <button class="btn btn-sm btn-ghost" onclick="cp('rb-out')">Copy</button>
+            </div>
+            <div class="out-box" id="rb-out"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Q&A -->
+      <div class="panel" id="panel-qa">
+        <div class="field">
+          <label class="fl">Job Description (for context)</label>
+          <textarea id="qa-jd" rows="4" placeholder="Paste JD so answers are role-specific..."></textarea>
+        </div>
+        <div id="q-slots"></div>
+        <button class="add-q" id="add-q" onclick="addQ()">+ Add question</button>
+        <div class="row-end">
+          <button class="btn btn-primary" id="qa-btn" onclick="genQA()">Generate answers →</button>
+        </div>
+        <div class="loader" id="qa-load">
+          <div class="ltext">Generating answers in your voice...</div>
+          <div class="lbar"><div class="lfill"></div></div>
+        </div>
+        <div class="out-wrap" id="qa-wrap">
+          <div class="out-head">
+            <label class="fl" style="margin:0">Application answers</label>
+            <button class="btn btn-sm btn-ghost" onclick="cp('qa-out')">Copy</button>
+          </div>
+          <div class="out-box" id="qa-out"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const PROFILE = `DESIGNER: Nick Newhart, Senior Product Designer, ~10 years experience.
+LOCATION: Lisbon, Portugal (US citizen). Open to: remote for US/EU companies, EU relocation (Germany, Netherlands, Spain), US return (Austin, Nashville, Raleigh-Durham).
+COMPENSATION FLOOR: ~$120k USD for US roles.
+
+CORE SKILLS: B2B SaaS product design, consumer mobile app design (roam. — full iOS-style travel app built solo in 14 days), design systems and Figma plugin UX (Systemly), data-heavy dashboards and internal tooling (MLS Pulse, Brandzooka analytics, roam. admin dashboard), map-first UX and complex data visualization (LiveBy Local), multi-product enterprise platform design with roles/permissions systems (LiveBy Platform), AdTech platform design (Brandzooka — 3-tier Agency/Brand/Campaign architecture), brand identity systems from scratch (multiple companies), mascot creation and Lottie/motion animation (Elton at Brandzooka), marketing site design and creative direction, government/defense credibility design (NEC National Security Solutions), e-commerce and subscription UX (Alpha supplements), dual-sided marketplace platform UX (Lancer), AI tool design and architecture (Scout, roam.), Figma plugin UX (Systemly), information architecture for complex multi-product platforms, onboarding flow design, end-to-end solo product delivery.
+
+TOOLS: Figma, Figma Make, Lovable, Claude AI, OpenAI, Vercel, GitHub, Supabase, After Effects, Lottie, Procreate, Illustrator, Photoshop, Webflow, Wordpress, Miro, Notion, Jira, Asana.
+
+CASE STUDIES:
+1. roam. (2026) — Solo 14-day consumer travel app. AI trip generation (Claude Sonnet), two-phase API architecture, iOS-style mobile UX, onboarding flows, community features (Scouts), admin dashboard, landing page. Full solo delivery: product, design, brand, dev.
+2. Systemly (2026) — Design system SaaS + Figma plugin. Plugin-first approach, token systems, web app for storage/sharing/documentation, marketing site, brand from scratch. Solo.
+3. LiveBy Local (2023-present) — Map-first B2B SaaS for real estate agents. 4 report types (Community Market, Property, Seller Activity, Community Guide), auto-branding system, design systems. Beta: 40% faster report generation.
+4. LiveBy Platform (2023-present) — Multi-product enterprise SaaS hub. Roles/permissions architecture, multi-product IA, onboarding flows, email templates, settings systems, plan/package management, dark+light mode, Intercom integration.
+5. MLS Pulse (2024) — Internal real-time data dashboard. Operational UX, status indicators, MLS health monitoring. Visual health indicators replaced manual tracking, reduced support tickets.
+6. LiveBy Website (2024-present) — Marketing site design and creative direction for B2B SaaS platform.
+7. Brandzooka (2021-2023) — Full AdTech platform redesign + brand system. Mascot creation (Elton), Lottie/motion animation, character rigging, 3-tier platform architecture, programmatic advertising UX, data dashboards, campaign builder, forecasting tools.
+8. NEC|NSS (2018) — Government/defense brand + website. Eagle logo design from scratch, high-stakes credibility design, government audience UX, dark high-contrast identity, particle effects.
+9. Scout (2026) — AI-powered job application tool. Fit scoring system, cover letter generation, profile extraction via screenshots, dark dev aesthetic, Geist Mono.
+10. Lancer (2019) — Mobile-first freelance platform concept. Dual-sided UX (freelancer + client), proposals/payments/chat/file sharing flows, brand identity.
+11. Alpha (2022) — E-commerce supplement brand concept. Brand identity, packaging system design, e-commerce UX, mobile app concept, subscription management UX, product education flows.
+
+WORK HISTORY:
+- LiveBy (Jan 2023–present): Product & UX/UI Designer — 3 interconnected products, design system, map-first experience, 4 report types, AI tooling
+- Brandzooka (Jan 2021–Jan 2023): UX/UI & Brand Designer — full platform redesign, brand identity, mascot, Lottie animation
+- A New Design Co (Jan 2019–Jan 2023): Owner & Lead Product Designer — agency, enterprise and nonprofit clients (NEC, Habitat for Humanity)
+- Green Dragon (Jan 2018–Jan 2020): Senior Graphic Designer — cannabis company rebrand, compliance-aware marketing design
+
+EDUCATION: General Assembly Advanced UX Design (2019), BA Interdisciplinary Art & Design, University of North Texas (2015)
+
+WRITING STYLE FOR ALL GENERATED CONTENT: First person. No em dashes. No corporate fluff. Short paragraphs. Direct sentences. Conversational but professional. Never sounds like AI wrote it.`;
+
+const SCORE_SYS = `You are a job fit evaluator for Nick Newhart, a Senior Product Designer with ~10 years of experience.
+
+${PROFILE}
+
+Evaluate the job description and return ONLY valid JSON with this exact structure:
+{"role_title":"string","company":"string","verdict":"APPLY|MAYBE|SKIP","grade":"A|B|C|D|F","summary":"2-3 honest sentences about fit and why","dimensions":[{"name":"Role Alignment","score":0,"note":"brief"},{"name":"Skill Match","score":0,"note":"brief"},{"name":"Location / Remote","score":0,"note":"brief"},{"name":"Seniority Level","score":0,"note":"brief"},{"name":"Industry Fit","score":0,"note":"brief"},{"name":"Comp Signal","score":0,"note":"brief or 'not listed'"}],"strengths":["..."],"gaps":["..."],"highlights":["..."]}
+
+CRITICAL SCORING RULES:
+- Nick's skills span B2B SaaS, consumer mobile apps, AdTech, govt/defense, e-commerce, design ops, brand identity, motion design. NEVER penalize for app/mobile/consumer roles — roam. is a fully shipped consumer travel app.
+- Industry Fit scores positively for: SaaS, fintech, travel, real estate, AdTech, design tools, dev tools, AI products, consumer apps, e-commerce, government, enterprise, health tech, edtech, marketplace platforms.
+- Skill Match scores against his FULL skill set — mobile, brand, motion, plugin UX, internal tooling, marketing sites, not just SaaS dashboards.
+- Location: 90-100 if remote-friendly or in target cities (Lisbon, Portugal, EU, Austin, Nashville, Raleigh-Durham). 60-75 if relocatable but requires move. 30-55 if wrong region with no remote option.
+- Seniority: 90-100 for Senior/Lead/Principal/Staff roles. 70-85 for mid-level with growth path. 40-60 for IC-heavy roles at right comp. Penalize for junior-only roles.
+- Grade: A=strong fit across most dimensions, B=good fit with minor gaps, C=possible with meaningful gaps, D=reach or significant mismatch, F=skip.
+- Verdict: APPLY for A/B, MAYBE for C, SKIP for D/F.
+- Return ONLY the JSON. No markdown, no preamble, no explanation.`;
+
+const clPrompt = (jd, tone, len) => `Write a cover letter FOR Nick Newhart, Senior Product Designer.
+
+${PROFILE}
+
+JOB DESCRIPTION:
+${jd}
+
+TONE: ${tone}
+LENGTH: ${len === 'short' ? '3 paragraphs' : len === 'standard' ? '4 paragraphs' : '5 paragraphs'}
+
+Instructions:
+- Open with a specific hook related to the company or role — not "I am writing to apply"
+- Reference real, specific projects from Nick's portfolio that match this role's needs
+- Speak to the company's specific context using what's in the JD
+- Close with a clear, confident next step
+- Use "Hi [Company] team," or "Hi [team name]," — not "Dear Hiring Manager"
+- Follow Nick's writing style exactly: first person, no em dashes, no corporate fluff, short paragraphs, direct sentences
+- Output only the letter text. No subject line. No markdown.`;
+
+const rbPrompt = jd => `Write tailored resume bullets FOR Nick Newhart, Senior Product Designer.
+
+${PROFILE}
+
+JOB DESCRIPTION:
+${jd}
+
+Generate 6-8 resume bullet points that:
+- Come from Nick's REAL experience and projects only — never fabricate
+- Are ordered by what this specific role values most
+- Start with strong action verbs
+- Include real metrics where they exist (e.g. "40% faster report generation" from LiveBy Local)
+- Are concise — max 20 words per bullet
+- Reference specific products/platforms/case studies where relevant
+
+Format: each bullet starts with • character. Output only the bullets, no headers, no markdown.`;
+
+const qaPrompt = (jd, qs) => `Answer application questions FOR Nick Newhart, Senior Product Designer.
+
+${PROFILE}
+
+JOB DESCRIPTION:
+${jd || '(No JD provided — answer based on profile alone)'}
+
+APPLICATION QUESTIONS:
+${qs.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+For each question:
+- Draw on Nick's real experience and real projects
+- Be direct and specific — no vague generalities
+- Keep answers concise: 2-5 sentences each
+- Use Nick's voice: first person, no em dashes, conversational but professional
+- Reference specific work when relevant
+
+Format:
+Q1: [question text]
+A1: [answer]
+
+Q2: [question text]
+A2: [answer]
+
+(continue for all questions)`;
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let apiKey = '';
+let history = [];
+let selIdx = null;
+let qCount = 0;
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+window.onload = () => {
+  apiKey = localStorage.getItem('jo_key') || '';
+  history = JSON.parse(localStorage.getItem('jo_hist') || '[]');
+  if (apiKey) showApp();
+  renderHist();
+  addQ();
+};
+
+function launch() {
+  const v = document.getElementById('api-input').value.trim();
+  if (!v.startsWith('sk-ant-')) { alert('Enter a valid Anthropic API key (starts with sk-ant-)'); return; }
+  apiKey = v;
+  localStorage.setItem('jo_key', apiKey);
+  showApp();
+  renderHist();
+}
+
+function showApp() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+
+function resetKey() {
+  localStorage.removeItem('jo_key');
+  apiKey = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('setup').style.display = 'flex';
+  document.getElementById('api-input').value = '';
+}
+
+// ── NAVIGATION ─────────────────────────────────────────────────────────────
+function sw(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('panel-' + name).classList.add('on');
+  btn.classList.add('on');
+}
+
+function swG(name, btn) {
+  document.querySelectorAll('.gblock').forEach(g => g.classList.remove('on'));
+  document.querySelectorAll('.gtab').forEach(b => b.classList.remove('on'));
+  document.getElementById('gen-' + name).classList.add('on');
+  btn.classList.add('on');
+}
+
+// ── HISTORY ────────────────────────────────────────────────────────────────
+function renderHist() {
+  const el = document.getElementById('hist-list');
+  if (!history.length) { el.innerHTML = '<div class="no-hist">No evaluations yet</div>'; return; }
+  el.innerHTML = history.slice().reverse().map((item, i) => {
+    const ri = history.length - 1 - i;
+    return `<div class="hist-item${selIdx === ri ? ' on' : ''}" onclick="selHist(${ri})">
+      <div class="hgrade h${item.grade}">${item.grade}</div>
+      <div><div class="htitle">${item.role_title}</div><div class="hco">${item.company}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function selHist(idx) {
+  selIdx = idx;
+  renderHist();
+  const item = history[idx];
+  renderScore(item);
+  const jd = item.jd || '';
+  document.getElementById('gen-jd').value = jd;
+  document.getElementById('gen-jd-rb').value = jd;
+  document.getElementById('qa-jd').value = jd;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nav-btn')[0].classList.add('on');
+  document.getElementById('panel-evaluate').classList.add('on');
+}
+
+function saveHist(data, jd) {
+  data.jd = jd;
+  data.ts = Date.now();
+  history.push(data);
+  localStorage.setItem('jo_hist', JSON.stringify(history));
+  renderHist();
+}
+
+// ── EVALUATE ───────────────────────────────────────────────────────────────
+async function evalJob() {
+  const jd = document.getElementById('jd-in').value.trim();
+  if (!jd) { alert('Paste a job description first.'); return; }
+  setLoading('eval', true);
+  document.getElementById('eval-result').innerHTML = '';
+  try {
+    const raw = await call(SCORE_SYS + '\n\nJOB DESCRIPTION TO EVALUATE:\n' + jd, 1400);
+    const data = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    renderScore(data);
+    saveHist(data, jd);
+    document.getElementById('gen-jd').value = jd;
+    document.getElementById('gen-jd-rb').value = jd;
+    document.getElementById('qa-jd').value = jd;
+  } catch (e) { alert('Error: ' + e.message); }
+  finally { setLoading('eval', false); }
+}
+
+function renderScore(d) {
+  const gc = { A: 'bA', B: 'bB', C: 'bC', D: 'bD', F: 'bF' };
+  const dims = (d.dimensions || []).map(dim => {
+    const p = Math.round(dim.score);
+    const fc = p >= 70 ? 'dhi' : p >= 45 ? 'dmid' : 'dlo';
+    return `<div class="dim">
+      <div class="dname">${dim.name}</div>
+      <div class="dbar-row"><div class="dbar"><div class="dfill ${fc}" style="width:${p}%"></div></div><div class="dpct">${p}</div></div>
+      <div class="dnote">${dim.note}</div>
+    </div>`;
+  }).join('');
+  const pills = (arr, cls) => (arr || []).map(s => `<span class="pill ${cls}">${s}</span>`).join('');
+  document.getElementById('eval-result').innerHTML = `
+    <div class="score-card">
+      <div class="sc-top">
+        <div class="sc-badge ${gc[d.grade] || 'bC'}">${d.grade}</div>
+        <div style="flex:1"><div class="sc-role">${d.role_title}</div><div class="sc-co">${d.company}</div></div>
+        <span class="verdict-pill v${d.verdict}">${d.verdict}</span>
+      </div>
+      <div class="dims">${dims}</div>
+      ${d.strengths?.length ? `<div><div class="sdiv">Matched skills</div><div class="pill-row">${pills(d.strengths, 'pg')}</div></div>` : ''}
+      ${d.gaps?.length ? `<div><div class="sdiv">Gaps</div><div class="pill-row">${pills(d.gaps, 'pr')}</div></div>` : ''}
+      ${d.highlights?.length ? `<div><div class="sdiv">Strong signals</div><div class="pill-row">${pills(d.highlights, 'pb')}</div></div>` : ''}
+      <div class="sc-summary">${d.summary}</div>
+    </div>`;
+}
+
+// ── GENERATE ───────────────────────────────────────────────────────────────
+async function genCL() {
+  const jd = document.getElementById('gen-jd').value.trim();
+  if (!jd) { alert('Paste a job description.'); return; }
+  setLoading('cl', true);
+  document.getElementById('cl-wrap').classList.remove('on');
+  try {
+    const tone = document.getElementById('tone').value;
+    const len = document.getElementById('length').value;
+    const txt = await call(clPrompt(jd, tone, len), 1100);
+    document.getElementById('cl-out').textContent = txt.trim();
+    document.getElementById('cl-wrap').classList.add('on');
+  } catch (e) { alert('Error: ' + e.message); }
+  finally { setLoading('cl', false); }
+}
+
+async function genRB() {
+  const jd = document.getElementById('gen-jd-rb').value.trim();
+  if (!jd) { alert('Paste a job description.'); return; }
+  setLoading('rb', true);
+  document.getElementById('rb-wrap').classList.remove('on');
+  try {
+    const txt = await call(rbPrompt(jd), 900);
+    document.getElementById('rb-out').textContent = txt.trim();
+    document.getElementById('rb-wrap').classList.add('on');
+  } catch (e) { alert('Error: ' + e.message); }
+  finally { setLoading('rb', false); }
+}
+
+// ── Q&A ────────────────────────────────────────────────────────────────────
+function addQ() {
+  if (qCount >= 5) return;
+  qCount++;
+  const n = qCount;
+  const el = document.createElement('div');
+  el.className = 'q-slot';
+  el.id = 'qs' + n;
+  el.innerHTML = `<div class="q-top"><span class="qn">Question ${n}</span><button class="qrm" onclick="rmQ(${n})">Remove</button></div>
+    <textarea id="qi${n}" rows="2" placeholder="e.g. Why do you want to work here?"></textarea>`;
+  document.getElementById('q-slots').appendChild(el);
+  if (qCount >= 5) document.getElementById('add-q').style.display = 'none';
+}
+
+function rmQ(n) {
+  const el = document.getElementById('qs' + n);
+  if (el) el.remove();
+  qCount = Math.max(0, qCount - 1);
+  document.getElementById('add-q').style.display = 'block';
+}
+
+async function genQA() {
+  const jd = document.getElementById('qa-jd').value.trim();
+  const qs = [];
+  document.querySelectorAll('[id^="qi"]').forEach(inp => { if (inp.value.trim()) qs.push(inp.value.trim()); });
+  if (!qs.length) { alert('Add at least one question.'); return; }
+  setLoading('qa', true);
+  document.getElementById('qa-wrap').classList.remove('on');
+  try {
+    const txt = await call(qaPrompt(jd, qs), 1400);
+    document.getElementById('qa-out').textContent = txt.trim();
+    document.getElementById('qa-wrap').classList.add('on');
+  } catch (e) { alert('Error: ' + e.message); }
+  finally { setLoading('qa', false); }
+}
+
+// ── API ─────────────────────────────────────────────────────────────────────
+async function call(prompt, maxTokens) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: maxTokens || 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error ' + res.status); }
+  const data = await res.json();
+  return data.content[0].text;
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function setLoading(id, on) {
+  const load = document.getElementById(id + '-load');
+  const btn = document.getElementById(id + '-btn');
+  if (load) load.classList[on ? 'add' : 'remove']('on');
+  if (btn) btn.disabled = on;
+}
+
+function cp(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.innerText || el.textContent).then(() => {
+    const btn = el.closest('.out-wrap')?.querySelector('.btn-ghost');
+    if (btn) { const o = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = o, 1500); }
+  });
+}
+</script>
+</body>
+</html>
