@@ -216,7 +216,7 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
           </div>
           <div class="row-end"><button class="btn btn-primary" id="cl-btn" onclick="genCL()">Generate cover letter →</button></div>
           <div class="loader" id="cl-load"><div class="ltext">Writing your cover letter...</div><div class="lbar"><div class="lfill"></div></div></div>
-          <div class="out-wrap" id="cl-wrap"><div class="out-head"><label class="fl" style="margin:0">Cover letter</label><button class="btn btn-sm btn-ghost" onclick="cp('cl-out')">Copy</button></div><div class="out-box" id="cl-out"></div></div>
+          <div class="out-wrap" id="cl-wrap"><div class="out-head"><label class="fl" style="margin:0">Cover letter</label><div style="display:flex;gap:6px"><button class="btn btn-sm btn-ghost" onclick="cp('cl-out')">Copy</button><button class="btn btn-sm btn-applied" onclick="downloadCLPdf()">Download PDF</button></div></div><div class="out-box" id="cl-out"></div></div>
         </div>
         <div class="gblock" id="gen-rb">
           <div class="field"><label class="fl">Job Description</label><textarea id="gen-jd-rb" rows="6" placeholder="Paste JD here, or select from history."></textarea></div>
@@ -482,6 +482,53 @@ async function call(prompt, maxTokens) {
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error ' + res.status); }
   const data = await res.json();
   return data.content[0].text;
+}
+
+// PDF DOWNLOAD
+function downloadCLPdf() {
+  const text = document.getElementById('cl-out').textContent.trim();
+  if (!text) { alert('Generate a cover letter first.'); return; }
+
+  const role = history[selIdx !== null ? selIdx : history.length - 1]?.role_title || '';
+  const company = history[selIdx !== null ? selIdx : history.length - 1]?.company || '';
+  const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  const paragraphs = text.split('\n').filter(l => l.trim()).map(l =>
+    `<p style="margin:0 0 14px 0;line-height:1.7;color:#1a1a1a;">${l}</p>`
+  ).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Cover Letter — Nick Newhart</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:#fff;color:#1a1a1a;padding:72px 80px;max-width:760px;margin:0 auto}
+  @media print{body{padding:54px 60px}@page{margin:0;size:letter}}
+  .header{border-bottom:2px solid #1a1a1a;padding-bottom:20px;margin-bottom:32px}
+  .name{font-size:24px;font-weight:500;letter-spacing:-0.02em;color:#1a1a1a;margin-bottom:6px}
+  .contact{font-size:12px;color:#555;letter-spacing:0.04em;display:flex;gap:20px}
+  .contact span{display:flex;align-items:center;gap:4px}
+  .meta{font-size:12px;color:#888;margin-bottom:28px}
+  .body{font-size:14px}
+</style>
+</head><body>
+<div class="header">
+  <div class="name">Nick Newhart</div>
+  <div class="contact">
+    <span>nicknewhart@gmail.com</span>
+    <span>817-938-1844</span>
+    <span>nicknewhart.com</span>
+    <span>Lisbon, Portugal</span>
+  </div>
+</div>
+<div class="meta">${dateStr}${company ? ' &nbsp;·&nbsp; ' + company : ''}${role ? ' &nbsp;·&nbsp; ' + role : ''}</div>
+<div class="body">${paragraphs}</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.focus(); win.print(); };
 }
 
 // UTILS
