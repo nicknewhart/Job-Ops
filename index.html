@@ -392,6 +392,55 @@ function saveNotes(idx) {
   if (ta) { history[idx].notes=ta.value; persist(); }
 }
 
+function saveRecruiterName(idx) {
+  const inp=document.getElementById('fu-recruiter-name');
+  if (inp) { history[idx].recruiterName=inp.value; persist(); }
+}
+
+async function genRecruiterMsg(idx) {
+  const item=history[idx];
+  const recruiterName=document.getElementById('fu-recruiter-name')?.value.trim()||'';
+  if (recruiterName) { history[idx].recruiterName=recruiterName; persist(); }
+
+  const prompt=`Write a short, direct LinkedIn or email outreach message FROM Nick Newhart to a recruiter or hiring contact about a job he applied for.
+
+${PROFILE}
+
+ROLE: ${item.role_title} at ${item.company}
+CONTACT NAME: ${recruiterName||'(no name provided — use a general greeting)'}
+APPLIED: ${item.appliedDate||'recently'}
+SALARY MENTIONED: ${item.salary||'not listed'}
+
+Write a 3-4 sentence message that:
+- Opens with a specific, warm greeting (use their name if provided)
+- References the specific role he applied for
+- Highlights 1-2 genuinely relevant things from his background that fit this role
+- Ends with a clear, low-pressure ask (a quick call or to keep him in mind)
+- Feels human and direct, not templated
+- Follows Nick's writing style: first person, no em dashes, conversational, no corporate fluff
+
+Output only the message text. No subject line. No markdown.`;
+
+  const btn=document.getElementById('gen-msg-btn');
+  const loader=document.getElementById('recruiter-msg-loader');
+  const wrap=document.getElementById('recruiter-msg-wrap');
+  if(btn)btn.disabled=true;
+  if(loader){loader.style.display='flex';}
+  if(wrap)wrap.style.display='none';
+
+  try {
+    const txt=await call(prompt, 500);
+    history[idx].recruiterMsg=txt.trim();
+    persist();
+    document.getElementById('recruiter-msg-out').textContent=txt.trim();
+    if(wrap)wrap.style.display='flex';
+  } catch(e) { alert('Error: '+e.message); }
+  finally {
+    if(btn)btn.disabled=false;
+    if(loader)loader.style.display='none';
+  }
+}
+
 // COMPANY LOOKUP
 async function lookupCompany(idx) {
   const item=history[idx];
@@ -488,7 +537,19 @@ function renderScore(d) {
         </div>
         <div class="fu-notes field">
           <label class="fu-label" style="margin-bottom:6px">Notes</label>
-          <textarea id="fu-notes-ta" rows="3" placeholder="Add follow-up notes, recruiter name, next steps..." onblur="saveNotes(${idx})">${item.notes||''}</textarea>
+          <textarea id="fu-notes-ta" rows="3" placeholder="Add follow-up notes, next steps..." onblur="saveNotes(${idx})">${item.notes||''}</textarea>
+        </div>
+        <div style="border-top:1px solid var(--purple-border);padding-top:14px;display:flex;flex-direction:column;gap:10px">
+          <div class="fu-label">Recruiter outreach</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="fu-recruiter-name" placeholder="Recruiter or contact name (optional)..." value="${item.recruiterName||''}" onblur="saveRecruiterName(${idx})" style="flex:1;background:var(--bg2);border:1px solid var(--purple-border);border-radius:var(--r);color:var(--text);font-family:var(--sans);font-size:13px;padding:9px 12px;outline:none;transition:border-color 0.15s" />
+            <button class="btn btn-sm btn-applied" id="gen-msg-btn" onclick="genRecruiterMsg(${idx})">Generate message</button>
+          </div>
+          <div id="recruiter-msg-loader" style="display:none;flex-direction:column;gap:6px"><div class="ltext">Writing your outreach message...</div><div class="lbar"><div class="lfill"></div></div></div>
+          <div id="recruiter-msg-wrap" style="display:${item.recruiterMsg?'flex':'none'};flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between"><span class="fu-label">Message</span><button class="btn btn-sm btn-ghost" onclick="cpText('recruiter-msg-out')">Copy</button></div>
+            <div id="recruiter-msg-out" style="background:var(--bg2);border:1px solid var(--purple-border);border-radius:var(--r);padding:14px 16px;font-size:13px;line-height:1.75;color:var(--text);white-space:pre-wrap">${item.recruiterMsg||''}</div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -587,6 +648,15 @@ async function call(prompt,maxTokens){
 
 // UTILS
 function setLoad(id,on){const l=document.getElementById(id+'-load');const b=document.getElementById(id+'-btn');if(l)l.classList[on?'add':'remove']('on');if(b)b.disabled=on;}
+function cpText(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  navigator.clipboard.writeText(el.innerText||el.textContent).then(()=>{
+    const btn=el.previousElementSibling?.querySelector('.btn-ghost');
+    if(btn){const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1500);}
+  });
+}
+
 function cp(id){const el=document.getElementById(id);navigator.clipboard.writeText(el.innerText||el.textContent).then(()=>{const btn=el.closest('.out-wrap')?.querySelector('.btn-ghost');if(btn){const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1500);}});}
 </script>
 </body>
