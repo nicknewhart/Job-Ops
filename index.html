@@ -402,24 +402,32 @@ async function genRecruiterMsg(idx) {
   const recruiterName=document.getElementById('fu-recruiter-name')?.value.trim()||'';
   if (recruiterName) { history[idx].recruiterName=recruiterName; persist(); }
 
-  const prompt=`Write a short, direct LinkedIn or email outreach message FROM Nick Newhart to a recruiter or hiring contact about a job he applied for.
+  const prompt=`Write a LinkedIn outreach message FROM Nick Newhart to a recruiter or hiring contact. Follow this exact structure and format:
 
 ${PROFILE}
 
 ROLE: ${item.role_title} at ${item.company}
-CONTACT NAME: ${recruiterName||'(no name provided — use a general greeting)'}
+CONTACT NAME: ${recruiterName||'(use "Hi there" if no name)'}
 APPLIED: ${item.appliedDate||'recently'}
-SALARY MENTIONED: ${item.salary||'not listed'}
 
-Write a 3-4 sentence message that:
-- Opens with a specific, warm greeting (use their name if provided)
-- References the specific role he applied for
-- Highlights 1-2 genuinely relevant things from his background that fit this role
-- Ends with a clear, low-pressure ask (a quick call or to keep him in mind)
-- Feels human and direct, not templated
-- Follows Nick's writing style: first person, no em dashes, conversational, no corporate fluff
+REQUIRED FORMAT — follow this structure exactly:
 
-Output only the message text. No subject line. No markdown.`;
+Hi [contact name],
+
+I saw that [company] is looking for a [role title] and wanted to reach out directly. If there's a better person to connect with, just point me in the right direction.
+
+[One paragraph, 2-3 sentences: match Nick's most relevant real experience to what this specific role needs. Be specific — name actual projects, products, or companies. Do NOT use generic phrases like "proven track record" or "passionate about design". Pull from his real case studies and work history to show genuine fit for this specific role and company.]
+
+If you're curious, here's my portfolio: nicknewhart.com
+
+Thank you for your time!
+
+RULES:
+- No em dashes anywhere
+- First person, conversational, sounds like a human not an AI
+- The body paragraph must reference real projects by name (roam., LiveBy, Brandzooka, etc.)
+- Keep the whole message under 150 words
+- Output only the message text, no subject line, no markdown`;
 
   const btn=document.getElementById('gen-msg-btn');
   const loader=document.getElementById('recruiter-msg-loader');
