@@ -60,6 +60,10 @@ nav{display:flex;gap:2px}
 .htitle{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hco{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .hdate{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px}
+.hloc{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:500;padding:2px 6px;border-radius:3px;background:var(--bg4);color:var(--text2);margin-top:3px;border:1px solid var(--border2)}
+.hloc.remote{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.hloc.eu{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)}
+.hloc.us{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-border)}
 .applied-dot{width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0;opacity:0;transition:opacity 0.15s}
 .applied-dot.on{opacity:1}
 .no-hist{font-family:var(--mono);font-size:12px;color:var(--text3);text-align:center;padding:20px 0}
@@ -189,6 +193,55 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
 .add-q:hover{color:var(--text2);border-color:var(--border2)}
 
 .section-sep{border:none;border-top:1px solid var(--border);margin:4px 0}
+
+@media(max-width:768px){
+  header{padding:0 16px;height:52px}
+  .logo span{display:none}
+  .api-label{display:none}
+  .main{flex-direction:column;padding-bottom:64px}
+  .sidebar{display:none;width:100%;border-right:none;border-bottom:1px solid var(--border);padding:12px 12px 4px;max-height:50vh;overflow-y:auto}
+  .sidebar.mobile-open{display:flex}
+  .content{padding:16px;max-width:100%}
+  .dims{grid-template-columns:1fr}
+  .row{flex-direction:column}
+  .sc-top{flex-wrap:wrap;gap:12px}
+  .sc-actions{width:100%}
+  .sc-actions .btn{width:100%}
+  .followup-grid{grid-template-columns:1fr}
+  .gtabs{width:100%}
+  .gtab{flex:1;text-align:center}
+  .out-box{font-size:13px}
+  .score-card{padding:16px}
+  .panel{gap:14px}
+  textarea{font-size:16px}
+  select{font-size:16px}
+
+  /* bottom nav */
+  .mobile-nav{display:flex}
+  nav{display:none}
+}
+
+@media(min-width:769px){
+  .mobile-nav{display:none!important}
+}
+
+.mobile-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:60px;
+  background:var(--bg2);
+  border-top:1px solid var(--border);
+  display:none;
+  align-items:stretch;
+  z-index:200;
+}
+.mob-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;border:none;background:transparent;color:var(--text3);cursor:pointer;
+  font-family:var(--mono);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;
+  transition:color 0.15s;padding:8px 0;
+}
+.mob-btn:hover,.mob-btn.on{color:var(--green)}
+.mob-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 </style>
 </head>
 <body>
@@ -276,6 +329,26 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
 
     </div>
   </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <div class="mobile-nav">
+    <button class="mob-btn on" id="mob-evaluate" onclick="mobSw('evaluate',this)">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Evaluate
+    </button>
+    <button class="mob-btn" id="mob-generate" onclick="mobSw('generate',this)">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Generate
+    </button>
+    <button class="mob-btn" id="mob-qa" onclick="mobSw('qa',this)">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Q&A
+    </button>
+    <button class="mob-btn" id="mob-history" onclick="toggleMobSidebar(this)">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
+      History
+    </button>
+  </div>
 </div>
 
 <script>
@@ -299,7 +372,7 @@ CASE STUDIES:
 WORK HISTORY: LiveBy (Jan 2023-present), Brandzooka (Jan 2021-Jan 2023), A New Design Co (Jan 2019-Jan 2023), Green Dragon (Jan 2018-Jan 2020).
 WRITING STYLE: First person. No em dashes. No corporate fluff. Short paragraphs. Direct sentences. Conversational but professional.`;
 
-const SCORE_SYS = `You are a job fit evaluator for Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nEvaluate the job description and return ONLY valid JSON:\n{"role_title":"string","company":"string","verdict":"APPLY|MAYBE|SKIP","grade":"A|B|C|D|F","salary":"string or null","summary":"2-3 honest sentences","dimensions":[{"name":"Role Alignment","score":0,"note":"brief"},{"name":"Skill Match","score":0,"note":"brief"},{"name":"Location / Remote","score":0,"note":"brief"},{"name":"Seniority Level","score":0,"note":"brief"},{"name":"Industry Fit","score":0,"note":"brief"},{"name":"Comp Signal","score":0,"note":"brief or not listed"}],"strengths":["..."],"gaps":["..."],"highlights":["..."]}\n\nFor "salary": extract any mentioned comp range exactly as written, or null.\nRULES: Never penalize for app/mobile/consumer roles. Location 90-100 if remote-friendly or target cities. Grade A=strong, B=good minor gaps, C=possible gaps, D=reach, F=skip. Verdict: APPLY for A/B, MAYBE for C, SKIP for D/F. Return ONLY JSON.`;
+const SCORE_SYS = `You are a job fit evaluator for Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nEvaluate the job description and return ONLY valid JSON:\n{"role_title":"string","company":"string","verdict":"APPLY|MAYBE|SKIP","grade":"A|B|C|D|F","salary":"string or null","location":"string or null","summary":"2-3 honest sentences","dimensions":[{"name":"Role Alignment","score":0,"note":"brief"},{"name":"Skill Match","score":0,"note":"brief"},{"name":"Location / Remote","score":0,"note":"brief"},{"name":"Seniority Level","score":0,"note":"brief"},{"name":"Industry Fit","score":0,"note":"brief"},{"name":"Comp Signal","score":0,"note":"brief or not listed"}],"strengths":["..."],"gaps":["..."],"highlights":["..."]}\n\nFor "salary": extract any mentioned comp range exactly as written, or null. For "location": extract job location as short label e.g. "Remote", "Austin TX", "London UK", "EU Remote", "Hybrid NYC". If not mentioned use null.\nRULES: Never penalize for app/mobile/consumer roles. Location 90-100 if remote-friendly or target cities. Grade A=strong, B=good minor gaps, C=possible gaps, D=reach, F=skip. Verdict: APPLY for A/B, MAYBE for C, SKIP for D/F. Return ONLY JSON.`;
 
 const COMPANY_PROMPT = company => `Find the website and a contact/careers email for "${company}". Return ONLY valid JSON: {"website":"string or null","careers_email":"string or null","careers_page":"string or null"}. Use null if not found. Return ONLY the JSON object.`;
 
@@ -316,7 +389,36 @@ let activeFilter = 'all';
 window.onload = () => { renderHist(); addQ(); };
 
 // NAV
-function sw(name,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));document.getElementById('panel-'+name).classList.add('on');btn.classList.add('on');}
+function sw(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('panel-'+name).classList.add('on');
+  btn.classList.add('on');
+  // close sidebar on mobile when switching panels
+  document.querySelector('.sidebar')?.classList.remove('mobile-open');
+}
+
+function mobSw(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.mob-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('panel-'+name).classList.add('on');
+  btn.classList.add('on');
+  // sync desktop nav
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
+  const map={evaluate:0,generate:1,qa:2};
+  document.querySelectorAll('.nav-btn')[map[name]]?.classList.add('on');
+  // close sidebar
+  document.querySelector('.sidebar')?.classList.remove('mobile-open');
+}
+
+function toggleMobSidebar(btn){
+  const sidebar=document.querySelector('.sidebar');
+  const isOpen=sidebar.classList.contains('mobile-open');
+  sidebar.classList.toggle('mobile-open');
+  document.querySelectorAll('.mob-btn').forEach(b=>b.classList.remove('on'));
+  if(!isOpen) btn.classList.add('on');
+  else document.getElementById('mob-evaluate')?.classList.add('on');
+}
 function swG(name,btn){document.querySelectorAll('.gblock').forEach(g=>g.classList.remove('on'));document.querySelectorAll('.gtab').forEach(b=>b.classList.remove('on'));document.getElementById('gen-'+name).classList.add('on');btn.classList.add('on');}
 
 // FILTER
@@ -332,11 +434,13 @@ function renderHist() {
     const appliedClass=item.applied?' applied':'';
     const dotClass=item.applied?' on':'';
     const dateStr=item.appliedDate||( item.ts?new Date(item.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'');
+    const locClass = item.location ? (item.location.toLowerCase().includes('remote') ? ' remote' : item.location.match(/germany|netherlands|spain|portugal|uk|london|berlin|amsterdam|eu|europe/i) ? ' eu' : item.location.match(/tx|tn|nc|ny|ca|austin|nashville|raleigh|us|usa/i) ? ' us' : '') : '';
     return `<div class="hist-item${selIdx===ri?' on':''}${appliedClass}" onclick="selHist(${ri})">
       <div class="hgrade h${item.grade}">${item.grade}</div>
       <div class="hinfo">
         <div class="htitle">${item.role_title}</div>
         <div class="hco">${item.company}</div>
+        ${item.location ? `<span class="hloc${locClass}">${item.location}</span>` : ''}
         ${dateStr?`<div class="hdate">${item.applied?'Applied '+item.appliedDate:dateStr}</div>`:''}
       </div>
       <div class="applied-dot${dotClass}" title="Applied"></div>
@@ -504,6 +608,7 @@ function renderScore(d) {
 
   const pills=(arr,cls)=>(arr||[]).map(s=>`<span class="pill ${cls}">${s}</span>`).join('');
   const salaryPill=d.salary?`<span class="salary-pill">${d.salary}</span>`:'';
+  const locationPill=d.location?`<span class="salary-pill" style="background:var(--bg3);color:var(--text2);border-color:var(--border2)">${d.location}</span>`:'';
   const appliedPill=item.applied?`<span class="applied-pill on">Applied ${item.appliedDate||''}</span>`:'';
   const appliedBtnLabel=item.applied?'Applied ✓':'Mark as Applied';
   const appliedBtnClass=item.applied?'btn btn-sm btn-applied is-applied':'btn btn-sm btn-applied';
@@ -573,6 +678,7 @@ function renderScore(d) {
           <div class="sc-pills">
             <span class="verdict-pill v${d.verdict}">${d.verdict}</span>
             ${salaryPill}
+            ${locationPill}
             ${appliedPill}
           </div>
         </div>
