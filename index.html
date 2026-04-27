@@ -118,6 +118,9 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
 .applied-pill{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.06em;padding:4px 10px;border-radius:5px;background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border);display:none}
 .applied-pill.on{display:inline-block}
 .sc-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sc-grade-inline{display:none;font-size:13px;font-weight:600;width:28px;height:28px;border-radius:6px;flex-shrink:0;margin-right:8px;vertical-align:middle;position:relative;top:-1px}
+.btn-applied .short-label{display:none}
+.btn-applied .full-label{display:inline}
 
 /* DIMS */
 .dims{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -263,14 +266,19 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
   .row-end .btn-primary{width:100%;padding:13px;font-size:12px}
 
   /* score card - mobile optimized */
-  .score-card{padding:14px;gap:12px}
-  .sc-top{gap:10px}
-  .sc-badge{width:52px;height:52px;font-size:24px;border-radius:10px}
-  .sc-role{font-size:17px}
-  .sc-co{font-size:13px}
-  .sc-pills{gap:5px;margin-top:6px}
-  .sc-actions{width:100%;margin-top:4px}
-  .sc-actions .btn{width:100%;padding:12px;font-size:11px}
+  .score-card{padding:14px;gap:14px}
+  .sc-top{flex-direction:column;gap:0}
+  .sc-badge{display:none}
+  .sc-grade-inline{display:inline-flex}
+  .sc-meta{width:100%}
+  .sc-role{font-size:18px;line-height:1.25;margin-bottom:3px;padding-right:0}
+  .sc-co{font-size:13px;margin-bottom:8px}
+  .sc-pills{gap:5px;margin-top:0;flex-wrap:wrap}
+  .sc-actions{width:100%;margin-top:10px}
+  .sc-actions .btn{width:100%;padding:11px;font-size:11px;letter-spacing:0.08em}
+  .btn-applied .full-label{display:none}
+  .btn-applied .short-label{display:inline}
+  .btn-applied.is-applied{opacity:1}
   .dims{grid-template-columns:1fr;gap:8px}
   .dim{padding:11px 13px}
   .dname{font-size:13px}
@@ -721,7 +729,8 @@ function renderScore(d) {
   const salaryPill=d.salary?`<span class="salary-pill">${d.salary}</span>`:'';
   const locationPill=d.location?`<span class="salary-pill" style="background:var(--bg3);color:var(--text2);border-color:var(--border2)">${d.location}</span>`:'';
   const appliedPill=item.applied?`<span class="applied-pill on">Applied ${item.appliedDate||''}</span>`:'';
-  const appliedBtnLabel=item.applied?'Applied ✓':'Mark as Applied';
+  const appliedBtnLabelFull=item.applied?'Applied ✓':'Mark as Applied';
+  const appliedBtnLabelShort=item.applied?'Applied ✓':'+ Applied';
   const appliedBtnClass=item.applied?'btn btn-sm btn-applied is-applied':'btn btn-sm btn-applied';
 
   // Company info block
@@ -784,7 +793,7 @@ function renderScore(d) {
       <div class="sc-top">
         <div class="sc-badge ${gc[d.grade]||'bC'}">${d.grade}</div>
         <div class="sc-meta">
-          <div class="sc-role">${d.role_title}</div>
+          <div class="sc-role"><span class="sc-grade-inline sc-badge ${gc[d.grade]||'bC'}">${d.grade}</span>${d.role_title}</div>
           <div class="sc-co">${d.company}</div>
           <div class="sc-pills">
             <span class="verdict-pill v${d.verdict}">${d.verdict}</span>
@@ -794,7 +803,7 @@ function renderScore(d) {
           </div>
         </div>
         <div class="sc-actions">
-          <button class="${appliedBtnClass}" onclick="toggleApplied(${idx})">${appliedBtnLabel}</button>
+          <button class="${appliedBtnClass}" onclick="toggleApplied(${idx})"><span class="full-label">${appliedBtnLabelFull}</span><span class="short-label">${appliedBtnLabelShort}</span></button>
         </div>
       </div>
       <div class="dims">${dims}</div>
