@@ -194,54 +194,105 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
 
 .section-sep{border:none;border-top:1px solid var(--border);margin:4px 0}
 
-@media(max-width:768px){
-  header{padding:0 16px;height:52px}
-  .logo span{display:none}
-  .api-label{display:none}
-  .main{flex-direction:column;padding-bottom:64px}
-  .sidebar{display:none;width:100%;border-right:none;border-bottom:1px solid var(--border);padding:12px 12px 4px;max-height:50vh;overflow-y:auto}
-  .sidebar.mobile-open{display:flex}
-  .content{padding:16px;max-width:100%}
-  .dims{grid-template-columns:1fr}
-  .row{flex-direction:column}
-  .sc-top{flex-wrap:wrap;gap:12px}
-  .sc-actions{width:100%}
-  .sc-actions .btn{width:100%}
-  .followup-grid{grid-template-columns:1fr}
-  .gtabs{width:100%}
-  .gtab{flex:1;text-align:center}
-  .out-box{font-size:13px}
-  .score-card{padding:16px}
-  .panel{gap:14px}
-  textarea{font-size:16px}
-  select{font-size:16px}
-
-  /* bottom nav */
-  .mobile-nav{display:flex}
-  nav{display:none}
-}
-
-@media(min-width:769px){
-  .mobile-nav{display:none!important}
-}
-
+/* ── MOBILE NAV BAR ── */
 .mobile-nav{
   position:fixed;bottom:0;left:0;right:0;
-  height:60px;
+  height:64px;
   background:var(--bg2);
   border-top:1px solid var(--border);
   display:none;
   align-items:stretch;
   z-index:200;
+  padding-bottom:env(safe-area-inset-bottom);
 }
 .mob-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:3px;border:none;background:transparent;color:var(--text3);cursor:pointer;
-  font-family:var(--mono);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;
-  transition:color 0.15s;padding:8px 0;
+  gap:4px;border:none;background:transparent;color:var(--text3);cursor:pointer;
+  font-family:var(--mono);font-size:9px;letter-spacing:0.05em;text-transform:uppercase;
+  transition:all 0.15s;padding:10px 0;-webkit-tap-highlight-color:transparent;
 }
-.mob-btn:hover,.mob-btn.on{color:var(--green)}
-.mob-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.mob-btn.on{color:var(--green)}
+.mob-btn.on .mob-icon{background:var(--green-bg);border-color:var(--green-border)}
+.mob-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;transition:all 0.15s;margin-bottom:1px}
+.mob-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── HISTORY DRAWER ── */
+.hist-drawer{
+  display:none;position:fixed;bottom:64px;left:0;right:0;
+  background:var(--bg2);border-top:1px solid var(--border);
+  z-index:190;max-height:60vh;overflow-y:auto;
+  padding:12px;flex-direction:column;gap:6px;
+  transform:translateY(100%);transition:transform 0.25s ease;
+}
+.hist-drawer.open{transform:translateY(0)}
+.drawer-header{display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.drawer-title{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:0.08em;text-transform:uppercase}
+.drawer-close{font-family:var(--mono);font-size:10px;color:var(--text3);background:transparent;border:none;cursor:pointer;padding:4px 8px}
+.drawer-filters{display:flex;gap:4px;margin-bottom:8px}
+
+@media(min-width:769px){
+  .mobile-nav{display:none!important}
+  .hist-drawer{display:none!important}
+}
+
+@media(max-width:768px){
+  /* layout */
+  header{padding:0 16px;height:52px}
+  .logo span{display:none}
+  .api-label{display:none}
+  .main{flex-direction:column;padding-bottom:72px}
+  .sidebar{display:none!important}
+  .content{padding:14px 14px 20px;max-width:100%}
+  .panel{gap:14px}
+
+  /* show mobile nav */
+  .mobile-nav{display:flex}
+  nav{display:none}
+
+  /* show history drawer when open */
+  .hist-drawer{display:flex}
+
+  /* forms - prevent iOS zoom */
+  textarea{font-size:16px;padding:12px;min-height:120px}
+  select{font-size:16px;padding:11px 12px}
+  input[type=text]{font-size:16px;padding:11px 12px}
+  label.fl{font-size:11px;margin-bottom:6px}
+
+  /* evaluate panel */
+  #jd-in{min-height:180px;font-size:15px}
+  .row-end .btn-primary{width:100%;padding:13px;font-size:12px}
+
+  /* score card - mobile optimized */
+  .score-card{padding:14px;gap:12px}
+  .sc-top{gap:10px}
+  .sc-badge{width:52px;height:52px;font-size:24px;border-radius:10px}
+  .sc-role{font-size:17px}
+  .sc-co{font-size:13px}
+  .sc-pills{gap:5px;margin-top:6px}
+  .sc-actions{width:100%;margin-top:4px}
+  .sc-actions .btn{width:100%;padding:12px;font-size:11px}
+  .dims{grid-template-columns:1fr;gap:8px}
+  .dim{padding:11px 13px}
+  .dname{font-size:13px}
+  .dnote{font-size:11px}
+  .sc-summary{font-size:13px;line-height:1.7;padding-top:12px}
+  .pill{font-size:10px;padding:3px 8px}
+
+  /* follow-up */
+  .followup-card{padding:14px 16px;gap:12px}
+  .followup-grid{grid-template-columns:1fr 1fr;gap:8px}
+
+  /* generate */
+  .gtabs{width:100%;margin-bottom:4px}
+  .gtab{flex:1;text-align:center;padding:7px 8px;font-size:10px}
+  .row{flex-direction:column;gap:10px}
+  .out-box{font-size:13px;line-height:1.7;padding:14px}
+
+  /* buttons in out-head */
+  .out-head{flex-wrap:wrap;gap:8px}
+  .out-head>div{display:flex;gap:6px;width:100%}
+  .out-head .btn-ghost,.out-head .btn-applied{flex:1;text-align:center}
+}
 </style>
 </head>
 <body>
@@ -301,6 +352,9 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
             <div class="field" style="flex:1"><label class="fl">Length</label>
               <select id="length"><option value="short">Short (3 paragraphs)</option><option value="standard" selected>Standard (4 paragraphs)</option><option value="detailed">Detailed (5 paragraphs)</option></select>
             </div>
+            <div class="field" style="flex:1"><label class="fl">Region</label>
+              <select id="region"><option value="us">US role</option><option value="eu">EU role</option></select>
+            </div>
           </div>
           <div class="row-end"><button class="btn btn-primary" id="cl-btn" onclick="genCL()">Generate cover letter →</button></div>
           <div class="loader" id="cl-load"><div class="ltext">Writing your cover letter...</div><div class="lbar"><div class="lfill"></div></div></div>
@@ -330,22 +384,35 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
     </div>
   </div>
 
+  <!-- HISTORY DRAWER (mobile) -->
+  <div class="hist-drawer" id="hist-drawer">
+    <div class="drawer-header">
+      <span class="drawer-title">History</span>
+      <button class="drawer-close" onclick="closeDrawer()">Close</button>
+    </div>
+    <div class="drawer-filters">
+      <button class="sf-btn on" onclick="setFilter('all',this)">All</button>
+      <button class="sf-btn" onclick="setFilter('applied',this)">Applied</button>
+    </div>
+    <div id="hist-list-drawer"></div>
+  </div>
+
   <!-- MOBILE BOTTOM NAV -->
   <div class="mobile-nav">
     <button class="mob-btn on" id="mob-evaluate" onclick="mobSw('evaluate',this)">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <div class="mob-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
       Evaluate
     </button>
     <button class="mob-btn" id="mob-generate" onclick="mobSw('generate',this)">
-      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      <div class="mob-icon"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
       Generate
     </button>
     <button class="mob-btn" id="mob-qa" onclick="mobSw('qa',this)">
-      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <div class="mob-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
       Q&A
     </button>
-    <button class="mob-btn" id="mob-history" onclick="toggleMobSidebar(this)">
-      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
+    <button class="mob-btn" id="mob-history" onclick="toggleDrawer(this)">
+      <div class="mob-icon"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg></div>
       History
     </button>
   </div>
@@ -407,17 +474,61 @@ function mobSw(name,btn){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));
   const map={evaluate:0,generate:1,qa:2};
   document.querySelectorAll('.nav-btn')[map[name]]?.classList.add('on');
-  // close sidebar
-  document.querySelector('.sidebar')?.classList.remove('mobile-open');
+  // close drawer
+  document.getElementById('hist-drawer')?.classList.remove('open');
+  // scroll content to top
+  document.querySelector('.content')?.scrollTo(0,0);
 }
 
-function toggleMobSidebar(btn){
-  const sidebar=document.querySelector('.sidebar');
-  const isOpen=sidebar.classList.contains('mobile-open');
-  sidebar.classList.toggle('mobile-open');
+function toggleDrawer(btn){
+  const drawer=document.getElementById('hist-drawer');
+  const isOpen=drawer.classList.contains('open');
+  if(isOpen){ closeDrawer(); return; }
+  renderDrawerHist();
+  drawer.classList.add('open');
   document.querySelectorAll('.mob-btn').forEach(b=>b.classList.remove('on'));
-  if(!isOpen) btn.classList.add('on');
-  else document.getElementById('mob-evaluate')?.classList.add('on');
+  btn.classList.add('on');
+}
+
+function closeDrawer(){
+  document.getElementById('hist-drawer')?.classList.remove('open');
+  // restore active panel tab
+  const active=document.querySelector('.panel.on');
+  if(active){
+    const name=active.id.replace('panel-','');
+    const map={evaluate:'mob-evaluate',generate:'mob-generate',qa:'mob-qa'};
+    document.querySelectorAll('.mob-btn').forEach(b=>b.classList.remove('on'));
+    document.getElementById(map[name])?.classList.add('on');
+  }
+}
+
+function renderDrawerHist(){
+  const el=document.getElementById('hist-list-drawer');
+  if(!el) return;
+  let items=history.slice().reverse().map((item,i)=>({item,ri:history.length-1-i}));
+  if(activeFilter==='applied') items=items.filter(({item})=>item.applied);
+  if(!items.length){el.innerHTML=`<div class="no-hist">${activeFilter==='applied'?'No applied roles yet':'No evaluations yet'}</div>`;return;}
+  const locClass=loc=>!loc?'':loc.toLowerCase().includes('remote')?' remote':loc.match(/germany|netherlands|spain|portugal|uk|london|berlin|amsterdam|eu|europe/i)?' eu':loc.match(/tx|tn|nc|il|ca|austin|nashville|raleigh|chicago|san francisco|san diego|us|usa/i)?' us':'';
+  el.innerHTML=items.map(({item,ri})=>{
+    const appliedClass=item.applied?' applied':'';
+    const dotClass=item.applied?' on':'';
+    const dateStr=item.appliedDate||(item.ts?new Date(item.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'');
+    return `<div class="hist-item${selIdx===ri?' on':''}${appliedClass}" onclick="selHistDrawer(${ri})">
+      <div class="hgrade h${item.grade}">${item.grade}</div>
+      <div class="hinfo">
+        <div class="htitle">${item.role_title}</div>
+        <div class="hco">${item.company}</div>
+        ${item.location?`<span class="hloc${locClass(item.location)}">${item.location}</span>`:''}
+        ${dateStr?`<div class="hdate">${item.applied?'Applied '+item.appliedDate:dateStr}</div>`:''}
+      </div>
+      <div class="applied-dot${dotClass}"></div>
+    </div>`;
+  }).join('');
+}
+
+function selHistDrawer(idx){
+  selHist(idx);
+  closeDrawer();
 }
 function swG(name,btn){document.querySelectorAll('.gblock').forEach(g=>g.classList.remove('on'));document.querySelectorAll('.gtab').forEach(b=>b.classList.remove('on'));document.getElementById('gen-'+name).classList.add('on');btn.classList.add('on');}
 
@@ -701,7 +812,8 @@ async function genCL(){
   const jd=document.getElementById('gen-jd').value.trim();
   if(!jd){alert('Paste a job description.');return;}
   setLoad('cl',true);document.getElementById('cl-wrap').classList.remove('on');
-  try{const txt=await call(clPrompt(jd,document.getElementById('tone').value,document.getElementById('length').value),1100);document.getElementById('cl-out').textContent=txt.trim();document.getElementById('cl-wrap').classList.add('on');}
+  const region=document.getElementById('region')?.value||'us';
+  try{const txt=await call(clPrompt(jd,document.getElementById('tone').value,document.getElementById('length').value),1100);document.getElementById('cl-out').textContent=txt.trim();document.getElementById('cl-out').dataset.region=region;document.getElementById('cl-wrap').classList.add('on');}
   catch(e){alert('Error: '+e.message);}
   finally{setLoad('cl',false);}
 }
@@ -733,6 +845,8 @@ async function genQA(){
 function downloadCLPdf(){
   const text=document.getElementById('cl-out').textContent.trim();
   if(!text){alert('Generate a cover letter first.');return;}
+  const region=document.getElementById('cl-out').dataset.region||document.getElementById('region')?.value||'us';
+  const phone=region==='eu'?'+351 963 788 655':'817-938-1844';
   const idx=selIdx!==null?selIdx:history.length-1;
   const role=history[idx]?.role_title||'';
   const company=history[idx]?.company||'';
@@ -742,7 +856,7 @@ function downloadCLPdf(){
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#fff;color:#1a1a1a;padding:72px 80px;max-width:760px;margin:0 auto}@media print{body{padding:54px 60px}@page{margin:0;size:letter}}.header{border-bottom:2px solid #1a1a1a;padding-bottom:20px;margin-bottom:32px}.name{font-size:24px;font-weight:500;letter-spacing:-0.02em;color:#1a1a1a;margin-bottom:6px}.contact{font-size:12px;color:#555;letter-spacing:0.04em;display:flex;gap:20px}.meta{font-size:12px;color:#888;margin-bottom:28px}.body{font-size:14px}</style>
 </head><body>
-<div class="header"><div class="name">Nick Newhart</div><div class="contact"><span>nicknewhart@gmail.com</span><span>817-938-1844</span><span>nicknewhart.com</span></div></div>
+<div class="header"><div class="name">Nick Newhart</div><div class="contact"><span>nicknewhart@gmail.com</span><span>${phone}</span><span>nicknewhart.com</span></div></div>
 <div class="meta">${dateStr}${company?' &nbsp;·&nbsp; '+company:''}${role?' &nbsp;·&nbsp; '+role:''}</div>
 <div class="body">${paragraphs}</div>
 </body></html>`;
