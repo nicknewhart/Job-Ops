@@ -67,6 +67,20 @@ nav{display:flex;gap:2px}
 .applied-dot{width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0;opacity:0;transition:opacity 0.15s}
 .applied-dot.on{opacity:1}
 .no-hist{font-family:var(--mono);font-size:12px;color:var(--text3);text-align:center;padding:20px 0}
+.search-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 12px;outline:none;transition:border-color 0.15s;margin-bottom:4px}
+.search-input:focus{border-color:var(--border2)}
+.search-input::placeholder{color:var(--text3)}
+.sync-bar{display:flex;align-items:center;gap:6px;padding:4px 2px;margin-bottom:4px}
+.sync-status{font-family:var(--mono);font-size:9px;color:var(--text3);flex:1;letter-spacing:0.04em}
+.sync-status.ok{color:var(--green)}
+.sync-status.err{color:var(--red)}
+.sync-status.syncing{color:var(--yellow)}
+.sync-btn{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;letter-spacing:0.05em;text-transform:uppercase;transition:all 0.15s;white-space:nowrap}
+.sync-btn:hover{color:var(--text);border-color:var(--border2)}
+.key-setup{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px;margin-bottom:4px}
+.key-setup p{font-size:12px;color:var(--text2);line-height:1.5}
+.key-setup input{background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;outline:none;width:100%}
+.key-setup input:focus{border-color:var(--border2)}
 
 /* CONTENT */
 .content{flex:1;padding:28px 36px;overflow-y:auto;max-width:860px}
@@ -320,6 +334,16 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
   <div class="main">
     <div class="sidebar">
       <div class="slab">History</div>
+      <div id="key-setup-block" class="key-setup" style="display:none">
+        <p>Paste your sync key to load your evaluations on this device.</p>
+        <input type="text" id="sync-key-input" placeholder="Paste your sync key..." />
+        <button class="sync-btn" style="align-self:flex-start;padding:5px 12px" onclick="activateSyncKey()">Load data</button>
+      </div>
+      <div class="sync-bar">
+        <span class="sync-status" id="sync-status">Not synced</span>
+        <button class="sync-btn" onclick="showSyncSetup()" id="sync-setup-btn" title="Sync settings">⚙ Sync</button>
+      </div>
+      <input type="text" class="search-input" id="search-input" placeholder="Search roles or companies..." oninput="renderHist()" />
       <div class="sidebar-filters">
         <button class="sf-btn on" onclick="setFilter('all',this)">All</button>
         <button class="sf-btn" onclick="setFilter('applied',this)">Applied</button>
@@ -398,6 +422,7 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
       <span class="drawer-title">History</span>
       <button class="drawer-close" onclick="closeDrawer()">Close</button>
     </div>
+    <input type="text" class="search-input" id="search-input-drawer" placeholder="Search roles or companies..." oninput="syncSearchInputs(this);renderHist();renderDrawerHist()" style="margin-bottom:8px" />
     <div class="drawer-filters">
       <button class="sf-btn on" onclick="setFilter('all',this)">All</button>
       <button class="sf-btn" onclick="setFilter('applied',this)">Applied</button>
@@ -460,8 +485,103 @@ let history = JSON.parse(localStorage.getItem('jo_hist') || '[]');
 let selIdx = null;
 let qCount = 0;
 let activeFilter = 'all';
+let syncKey = localStorage.getItem('jo_sync_key') || '';
+let syncTimeout = null;
 
-window.onload = () => { renderHist(); addQ(); };
+window.onload = () => {
+  renderHist();
+  addQ();
+  if (syncKey) {
+    loadFromSupabase();
+  } else {
+    document.getElementById('key-setup-block').style.display = 'block';
+    setSyncStatus('Set up sync key', '');
+  }
+};
+
+// ── SEARCH ──────────────────────────────────────────────────────────────────
+function getSearchQuery() {
+  const s = document.getElementById('search-input');
+  const sd = document.getElementById('search-input-drawer');
+  return (s?.value || sd?.value || '').toLowerCase().trim();
+}
+
+function syncSearchInputs(src) {
+  const val = src.value;
+  const s = document.getElementById('search-input');
+  const sd = document.getElementById('search-input-drawer');
+  if (s && s !== src) s.value = val;
+  if (sd && sd !== src) sd.value = val;
+}
+
+// ── SYNC ────────────────────────────────────────────────────────────────────
+function setSyncStatus(msg, state) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'sync-status' + (state ? ' ' + state : '');
+}
+
+function showSyncSetup() {
+  const block = document.getElementById('key-setup-block');
+  if (!block) return;
+  const isVisible = block.style.display !== 'none';
+  block.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible && syncKey) {
+    document.getElementById('sync-key-input').value = syncKey;
+  }
+}
+
+function activateSyncKey() {
+  const inp = document.getElementById('sync-key-input');
+  const key = inp?.value.trim();
+  if (!key) { alert('Paste a sync key first.'); return; }
+  syncKey = key;
+  localStorage.setItem('jo_sync_key', syncKey);
+  document.getElementById('key-setup-block').style.display = 'none';
+  loadFromSupabase();
+}
+
+async function loadFromSupabase() {
+  if (!syncKey) return;
+  setSyncStatus('Loading...', 'syncing');
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'load', userKey: syncKey })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (data.evals && data.evals.length > 0) {
+      history = data.evals;
+      localStorage.setItem('jo_hist', JSON.stringify(history));
+    }
+    setSyncStatus('Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 'ok');
+    renderHist();
+  } catch(e) {
+    setSyncStatus('Sync failed', 'err');
+    console.error('Load error:', e);
+  }
+}
+
+async function saveToSupabase() {
+  if (!syncKey) return;
+  setSyncStatus('Saving...', 'syncing');
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save', userKey: syncKey, data: history })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    setSyncStatus('Saved ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), 'ok');
+  } catch(e) {
+    setSyncStatus('Save failed', 'err');
+    console.error('Save error:', e);
+  }
+}
 
 // NAV
 function sw(name,btn){
@@ -513,8 +633,10 @@ function closeDrawer(){
 function renderDrawerHist(){
   const el=document.getElementById('hist-list-drawer');
   if(!el) return;
+  const q=getSearchQuery();
   let items=history.slice().reverse().map((item,i)=>({item,ri:history.length-1-i}));
   if(activeFilter==='applied') items=items.filter(({item})=>item.applied);
+  if(q) items=items.filter(({item})=>(item.role_title||'').toLowerCase().includes(q)||(item.company||'').toLowerCase().includes(q));
   if(!items.length){el.innerHTML=`<div class="no-hist">${activeFilter==='applied'?'No applied roles yet':'No evaluations yet'}</div>`;return;}
   const locClass=loc=>!loc?'':loc.toLowerCase().includes('remote')?' remote':loc.match(/germany|netherlands|spain|portugal|uk|london|berlin|amsterdam|eu|europe/i)?' eu':loc.match(/tx|tn|nc|il|ca|austin|nashville|raleigh|chicago|san francisco|san diego|us|usa/i)?' us':'';
   el.innerHTML=items.map(({item,ri})=>{
@@ -546,8 +668,10 @@ function setFilter(f,btn){activeFilter=f;document.querySelectorAll('.sf-btn').fo
 // HISTORY
 function renderHist() {
   const el = document.getElementById('hist-list');
+  const q = getSearchQuery();
   let items = history.slice().reverse().map((item,i)=>({item,ri:history.length-1-i}));
   if (activeFilter==='applied') items=items.filter(({item})=>item.applied);
+  if (q) items=items.filter(({item})=>(item.role_title||'').toLowerCase().includes(q)||(item.company||'').toLowerCase().includes(q));
   if (!items.length){el.innerHTML=`<div class="no-hist">${activeFilter==='applied'?'No applied roles yet':'No evaluations yet'}</div>`;return;}
   el.innerHTML=items.map(({item,ri})=>{
     const appliedClass=item.applied?' applied':'';
@@ -596,7 +720,13 @@ function saveHist(data,jd) {
   renderHist();
 }
 
-function persist(){localStorage.setItem('jo_hist',JSON.stringify(history));}
+function persist(){
+  localStorage.setItem('jo_hist',JSON.stringify(history));
+  if (syncKey) {
+    clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(saveToSupabase, 1500);
+  }
+}
 
 // APPLIED TOGGLE
 function toggleApplied(idx) {
