@@ -422,6 +422,7 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
       <span class="drawer-title">History</span>
       <button class="drawer-close" onclick="closeDrawer()">Close</button>
     </div>
+    <div id="mob-sync-block" style="margin-bottom:8px"></div>
     <input type="text" class="search-input" id="search-input-drawer" placeholder="Search roles or companies..." oninput="syncSearchInputs(this);renderHist();renderDrawerHist()" style="margin-bottom:8px" />
     <div class="drawer-filters">
       <button class="sf-btn on" onclick="setFilter('all',this)">All</button>
@@ -608,10 +609,37 @@ function mobSw(name,btn){
   document.querySelector('.content')?.scrollTo(0,0);
 }
 
+function renderMobSync(){
+  const el=document.getElementById('mob-sync-block');
+  if(!el) return;
+  if(!syncKey){
+    el.innerHTML=`<div class="key-setup">
+      <p>Paste your sync key to load evaluations on this device.</p>
+      <input type="text" id="mob-sync-key-input" placeholder="Your sync key..." style="font-size:16px" />
+      <button class="sync-btn" style="align-self:flex-start;padding:6px 14px;font-size:11px" onclick="activateMobSyncKey()">Load data</button>
+    </div>`;
+  } else {
+    el.innerHTML=`<div class="sync-bar">
+      <span class="sync-status ${syncKey?'ok':''}" id="mob-sync-status">${syncKey?'Synced':'Not synced'}</span>
+      <button class="sync-btn" onclick="loadFromSupabase().then(renderDrawerHist)">Refresh</button>
+    </div>`;
+  }
+}
+
+function activateMobSyncKey(){
+  const inp=document.getElementById('mob-sync-key-input');
+  const key=inp?.value.trim();
+  if(!key){alert('Paste a sync key first.');return;}
+  syncKey=key;
+  localStorage.setItem('jo_sync_key',syncKey);
+  loadFromSupabase().then(()=>{ renderDrawerHist(); renderMobSync(); });
+}
+
 function toggleDrawer(btn){
   const drawer=document.getElementById('hist-drawer');
   const isOpen=drawer.classList.contains('open');
   if(isOpen){ closeDrawer(); return; }
+  renderMobSync();
   renderDrawerHist();
   drawer.classList.add('open');
   document.querySelectorAll('.mob-btn').forEach(b=>b.classList.remove('on'));
