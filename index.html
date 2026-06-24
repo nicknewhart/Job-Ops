@@ -133,8 +133,8 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
 .applied-pill.on{display:inline-block}
 .sc-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .sc-grade-inline{display:none;font-size:13px;font-weight:600;width:28px;height:28px;border-radius:6px;flex-shrink:0;margin-right:8px;vertical-align:middle;position:relative;top:-1px}
-.btn-applied .short-label{display:none}
-.btn-applied .full-label{display:inline}
+.btn-applied .short-label,.btn-ghost .short-label{display:none}
+.btn-applied .full-label,.btn-ghost .full-label{display:inline}
 
 /* DIMS */
 .dims{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -290,8 +290,8 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
   .sc-pills{gap:5px;margin-top:0;flex-wrap:wrap}
   .sc-actions{width:100%;margin-top:10px}
   .sc-actions .btn{width:100%;padding:11px;font-size:11px;letter-spacing:0.08em}
-  .btn-applied .full-label{display:none}
-  .btn-applied .short-label{display:inline}
+  .btn-applied .full-label,.btn-ghost .full-label{display:none}
+  .btn-applied .short-label,.btn-ghost .short-label{display:inline}
   .btn-applied.is-applied{opacity:1}
   .dims{grid-template-columns:1fr;gap:8px}
   .dim{padding:11px 13px}
@@ -968,6 +968,7 @@ function renderScore(d) {
           </div>
         </div>
         <div class="sc-actions">
+          <button class="btn btn-sm btn-ghost" onclick="downloadSummaryPdf(${idx})" title="Download a PDF summary of this application"><span class="full-label">Download Summary</span><span class="short-label">Summary</span></button>
           <button class="${appliedBtnClass}" onclick="toggleApplied(${idx})"><span class="full-label">${appliedBtnLabelFull}</span><span class="short-label">${appliedBtnLabelShort}</span></button>
         </div>
       </div>
@@ -982,12 +983,30 @@ function renderScore(d) {
 }
 
 // GENERATE
+
+// Find a history entry index by matching JD text (used to attach generated content to the right role)
+function findHistIdxByJD(jd){
+  if(!jd) return selIdx;
+  const trimmed = jd.trim();
+  for(let i=history.length-1;i>=0;i--){
+    if(history[i].jd && history[i].jd.trim()===trimmed) return i;
+  }
+  return selIdx;
+}
+
 async function genCL(){
   const jd=document.getElementById('gen-jd').value.trim();
   if(!jd){alert('Paste a job description.');return;}
   setLoad('cl',true);document.getElementById('cl-wrap').classList.remove('on');
   const region=document.getElementById('region')?.value||'us';
-  try{const txt=await call(clPrompt(jd,document.getElementById('tone').value,document.getElementById('length').value,region),1100);document.getElementById('cl-out').textContent=txt.trim();document.getElementById('cl-out').dataset.region=region;document.getElementById('cl-wrap').classList.add('on');}
+  try{
+    const txt=await call(clPrompt(jd,document.getElementById('tone').value,document.getElementById('length').value,region),1100);
+    document.getElementById('cl-out').textContent=txt.trim();
+    document.getElementById('cl-out').dataset.region=region;
+    document.getElementById('cl-wrap').classList.add('on');
+    const hIdx=findHistIdxByJD(jd);
+    if(hIdx!==null && history[hIdx]){ history[hIdx].coverLetter=txt.trim(); history[hIdx].coverLetterRegion=region; persist(); }
+  }
   catch(e){alert('Error: '+e.message);}
   finally{setLoad('cl',false);}
 }
@@ -996,7 +1015,13 @@ async function genRB(){
   const jd=document.getElementById('gen-jd-rb').value.trim();
   if(!jd){alert('Paste a job description.');return;}
   setLoad('rb',true);document.getElementById('rb-wrap').classList.remove('on');
-  try{const txt=await call(rbPrompt(jd),900);document.getElementById('rb-out').textContent=txt.trim();document.getElementById('rb-wrap').classList.add('on');}
+  try{
+    const txt=await call(rbPrompt(jd),900);
+    document.getElementById('rb-out').textContent=txt.trim();
+    document.getElementById('rb-wrap').classList.add('on');
+    const hIdx=findHistIdxByJD(jd);
+    if(hIdx!==null && history[hIdx]){ history[hIdx].resumeBullets=txt.trim(); persist(); }
+  }
   catch(e){alert('Error: '+e.message);}
   finally{setLoad('rb',false);}
 }
@@ -1010,12 +1035,140 @@ async function genQA(){
   const qs=[];document.querySelectorAll('[id^="qi"]').forEach(inp=>{if(inp.value.trim())qs.push(inp.value.trim());});
   if(!qs.length){alert('Add at least one question.');return;}
   setLoad('qa',true);document.getElementById('qa-wrap').classList.remove('on');
-  try{const txt=await call(qaPrompt(jd,qs),1400);document.getElementById('qa-out').textContent=txt.trim();document.getElementById('qa-wrap').classList.add('on');}
+  try{
+    const txt=await call(qaPrompt(jd,qs),1400);
+    document.getElementById('qa-out').textContent=txt.trim();
+    document.getElementById('qa-wrap').classList.add('on');
+    const hIdx=findHistIdxByJD(jd);
+    if(hIdx!==null && history[hIdx]){ history[hIdx].qaAnswers=txt.trim(); persist(); }
+  }
   catch(e){alert('Error: '+e.message);}
   finally{setLoad('qa',false);}
 }
 
 // PDF DOWNLOAD
+function downloadSummaryPdf(idx){
+  const item = history[idx];
+  if(!item){ alert('Could not find this evaluation.'); return; }
+
+  const dateStr = item.ts ? new Date(item.ts).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : '';
+  const appliedStr = item.applied ? (item.appliedDate||'Yes') : 'Not marked applied';
+
+  const gradeColors = {A:'#166534',B:'#166534',C:'#713f12',D:'#7c2d12',F:'#7f1d1d'};
+  const gradeColor = gradeColors[item.grade] || '#444';
+
+  const dimsHtml = (item.dimensions||[]).map(d => {
+    const pct = Math.round(d.score);
+    return `<tr>
+      <td style="padding:6px 0;font-size:13px;color:#333;width:140px;">${d.name}</td>
+      <td style="padding:6px 0;">
+        <div style="background:#eee;border-radius:3px;height:8px;width:100%;max-width:200px;overflow:hidden;">
+          <div style="background:${pct>=70?'#4ade80':pct>=45?'#facc15':'#f87171'};height:100%;width:${pct}%;"></div>
+        </div>
+      </td>
+      <td style="padding:6px 0 6px 10px;font-size:13px;color:#666;width:40px;">${pct}</td>
+      <td style="padding:6px 0 6px 16px;font-size:12px;color:#888;font-style:italic;">${d.note||''}</td>
+    </tr>`;
+  }).join('');
+
+  const pillsHtml = (arr, color, bg) => (arr||[]).map(s =>
+    `<span style="display:inline-block;font-size:11px;padding:3px 9px;border-radius:4px;background:${bg};color:${color};margin:2px 4px 2px 0;">${s}</span>`
+  ).join('');
+
+  const jdEscaped = (item.jd||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const clEscaped = item.coverLetter ? item.coverLetter.replace(/</g,'&lt;').replace(/>/g,'&gt;') : null;
+  const rbEscaped = item.resumeBullets ? item.resumeBullets.replace(/</g,'&lt;').replace(/>/g,'&gt;') : null;
+  const qaEscaped = item.qaAnswers ? item.qaAnswers.replace(/</g,'&lt;').replace(/>/g,'&gt;') : null;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Application Summary — ${item.company}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:#fff;color:#1a1a1a;padding:50px 60px;max-width:800px;margin:0 auto;font-size:14px;line-height:1.6}
+  @media print{body{padding:40px 50px}@page{margin:0;size:letter}}
+  .header{border-bottom:3px solid ${gradeColor};padding-bottom:18px;margin-bottom:24px;display:flex;align-items:flex-start;gap:16px}
+  .grade-badge{font-family:'Geist Mono',monospace;font-size:28px;font-weight:600;width:52px;height:52px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:${gradeColor}1A;color:${gradeColor};flex-shrink:0;border:1px solid ${gradeColor}55}
+  .role-title{font-size:22px;font-weight:600;color:#1a1a1a;margin-bottom:2px}
+  .company-name{font-size:15px;color:#555}
+  .meta-row{font-family:'Geist Mono',monospace;font-size:11px;color:#888;margin-top:6px;letter-spacing:0.02em}
+  .section{margin-bottom:26px}
+  .section-title{font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#888;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:12px}
+  .summary-text{font-size:13px;color:#444;line-height:1.7}
+  .jd-box{background:#f7f7f7;border:1px solid #e5e5e5;border-radius:6px;padding:16px 18px;font-size:12px;color:#555;line-height:1.7;white-space:pre-wrap;max-height:300px;overflow:hidden;}
+  .output-box{background:#f7f7f7;border:1px solid #e5e5e5;border-radius:6px;padding:16px 18px;font-size:13px;color:#333;line-height:1.75;white-space:pre-wrap}
+  table{width:100%}
+  .footer-note{font-size:11px;color:#aaa;text-align:center;margin-top:30px;font-style:italic}
+</style>
+</head><body>
+
+<div class="header">
+  <div class="grade-badge">${item.grade||'?'}</div>
+  <div>
+    <div class="role-title">${item.role_title||'Untitled Role'}</div>
+    <div class="company-name">${item.company||''}</div>
+    <div class="meta-row">EVALUATED ${dateStr.toUpperCase()} &nbsp;&middot;&nbsp; APPLIED: ${appliedStr.toUpperCase()} &nbsp;&middot;&nbsp; ${item.salary?('SALARY: '+item.salary.toUpperCase()+' &nbsp;&middot;&nbsp; '):''}${item.location?('LOCATION: '+item.location.toUpperCase()):''}</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Fit Summary</div>
+  <div class="summary-text">${item.summary||''}</div>
+</div>
+
+${item.dimensions && item.dimensions.length ? `<div class="section">
+  <div class="section-title">Score Breakdown</div>
+  <table>${dimsHtml}</table>
+</div>` : ''}
+
+${(item.strengths?.length || item.gaps?.length || item.highlights?.length) ? `<div class="section">
+  <div class="section-title">Signals</div>
+  ${item.strengths?.length ? `<div style="margin-bottom:8px;">${pillsHtml(item.strengths,'#166534','#dcfce7')}</div>` : ''}
+  ${item.gaps?.length ? `<div style="margin-bottom:8px;">${pillsHtml(item.gaps,'#7f1d1d','#fee2e2')}</div>` : ''}
+  ${item.highlights?.length ? `<div>${pillsHtml(item.highlights,'#0c447c','#dbeafe')}</div>` : ''}
+</div>` : ''}
+
+${clEscaped ? `<div class="section">
+  <div class="section-title">Cover Letter Sent</div>
+  <div class="output-box">${clEscaped}</div>
+</div>` : ''}
+
+${qaEscaped ? `<div class="section">
+  <div class="section-title">Application Question Answers</div>
+  <div class="output-box">${qaEscaped}</div>
+</div>` : ''}
+
+${rbEscaped ? `<div class="section">
+  <div class="section-title">Tailored Resume Bullets Used</div>
+  <div class="output-box">${rbEscaped}</div>
+</div>` : ''}
+
+${item.recruiterName || item.recruiterMsg ? `<div class="section">
+  <div class="section-title">Recruiter Outreach</div>
+  ${item.recruiterName ? `<div style="font-size:12px;color:#888;margin-bottom:8px;">Contact: ${item.recruiterName}</div>` : ''}
+  ${item.recruiterMsg ? `<div class="output-box">${item.recruiterMsg.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''}
+</div>` : ''}
+
+${item.notes ? `<div class="section">
+  <div class="section-title">Follow-up Notes</div>
+  <div class="summary-text">${item.notes.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+</div>` : ''}
+
+<div class="section">
+  <div class="section-title">Original Job Description</div>
+  <div class="jd-box">${jdEscaped.slice(0,2000)}${jdEscaped.length>2000?'\n\n[truncated]':''}</div>
+</div>
+
+<div class="footer-note">Generated by Job Ops &middot; ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
+
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.focus(); win.print(); };
+}
+
 function downloadCLPdf(){
   const text=document.getElementById('cl-out').textContent.trim();
   if(!text){alert('Generate a cover letter first.');return;}
