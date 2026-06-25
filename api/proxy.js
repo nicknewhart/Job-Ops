@@ -1,19 +1,21 @@
 export const config = { runtime: 'edge' };
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    });
+    return new Response(null, { status: 204, headers: CORS });
   }
 
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return new Response(JSON.stringify({ error: { message: 'Method not allowed' } }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', ...CORS },
+    });
   }
 
   try {
@@ -29,22 +31,32 @@ export default async function handler(req) {
       body: JSON.stringify(body),
     });
 
-    const data = await response.json();
+    // Read the raw text first, since Anthropic (or an intermediary)
+    // can sometimes return HTML or plain text on errors instead of JSON.
+    const rawText = await response.text();
+
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      // Not valid JSON — wrap it so the frontend always gets parseable JSON back.
+      data = {
+        error: {
+          message: rawText && rawText.trim()
+            ? `Upstream error (status ${response.status}): ${rawText.slice(0, 300)}`
+            : `Upstream error (status ${response.status}) with no response body.`,
+        },
+      };
+    }
 
     return new Response(JSON.stringify(data), {
       status: response.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { 'Content-Type': 'application/json', ...CORS },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: { message: err.message } }), {
+    return new Response(JSON.stringify({ error: { message: err.message || 'Unknown proxy error' } }), {
       status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { 'Content-Type': 'application/json', ...CORS },
     });
   }
 }
