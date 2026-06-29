@@ -1,4 +1,7 @@
-export const config = { runtime: 'edge' };
+export const config = {
+  runtime: 'edge',
+  maxDuration: 60,
+};
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -21,25 +24,45 @@ export default async function handler(req) {
   try {
     const body = await req.json();
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify(body),
-    });
+    // Give Anthropic up to 55s to respond before we give up ourselves,
+    // so we always return valid JSON instead of letting Vercel kill the function cold.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
 
-    // Read the raw text first, since Anthropic (or an intermediary)
-    // can sometimes return HTML or plain text on errors instead of JSON.
+    let response;
+    try {
+      response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      const isAbort = fetchErr.name === 'AbortError';
+      return new Response(JSON.stringify({
+        error: {
+          message: isAbort
+            ? 'Request to Claude timed out after 55 seconds. Try again, or shorten the job description.'
+            : 'Network error reaching Claude API: ' + fetchErr.message,
+        },
+      }), {
+        status: 504,
+        headers: { 'Content-Type': 'application/json', ...CORS },
+      });
+    }
+    clearTimeout(timeoutId);
+
     const rawText = await response.text();
 
     let data;
     try {
       data = JSON.parse(rawText);
     } catch {
-      // Not valid JSON — wrap it so the frontend always gets parseable JSON back.
       data = {
         error: {
           message: rawText && rawText.trim()
