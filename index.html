@@ -67,6 +67,14 @@ nav{display:flex;gap:2px}
 .applied-dot{width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0;opacity:0;transition:opacity 0.15s}
 .applied-dot.on{opacity:1}
 .no-hist{font-family:var(--mono);font-size:12px;color:var(--text3);text-align:center;padding:20px 0}
+.grade-stats{display:flex;gap:4px;padding:2px 0;margin-bottom:4px;flex-wrap:wrap}
+.gstat{font-family:var(--mono);font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;display:flex;align-items:center;gap:4px;flex:1;justify-content:center}
+.gstat-count{font-size:11px;font-weight:600}
+.gsA{background:#052e16;color:#4ade80;border:1px solid #166534}
+.gsB{background:#1c3a08;color:#86efac;border:1px solid #166534}
+.gsC{background:#1a1000;color:#facc15;border:1px solid #713f12}
+.gsD{background:#1a0800;color:#fb923c;border:1px solid #7c2d12}
+.gsF{background:#1a0000;color:#f87171;border:1px solid #7f1d1d}
 .search-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 12px;outline:none;transition:border-color 0.15s;margin-bottom:4px}
 .search-input:focus{border-color:var(--border2)}
 .search-input::placeholder{color:var(--text3)}
@@ -334,6 +342,7 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
   <div class="main">
     <div class="sidebar">
       <div class="slab">History</div>
+      <div class="grade-stats" id="grade-stats"></div>
       <div id="key-setup-block" class="key-setup" style="display:none">
         <p>Paste your sync key to load your evaluations on this device.</p>
         <input type="text" id="sync-key-input" placeholder="Paste your sync key..." />
@@ -701,7 +710,20 @@ function swG(name,btn){document.querySelectorAll('.gblock').forEach(g=>g.classLi
 function setFilter(f,btn){activeFilter=f;document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderHist();}
 
 // HISTORY
+function renderGradeStats(){
+  const el=document.getElementById('grade-stats');
+  if(!el) return;
+  const counts={A:0,B:0,C:0,D:0,F:0};
+  history.forEach(item=>{ if(counts[item.grade]!==undefined) counts[item.grade]++; });
+  const total=Object.values(counts).reduce((a,b)=>a+b,0);
+  if(!total){ el.innerHTML=''; return; }
+  el.innerHTML=Object.entries(counts).map(([g,n])=>
+    `<div class="gstat gs${g}" title="${n} ${g}-grade role${n!==1?'s':''}"><span>${g}</span><span class="gstat-count">${n}</span></div>`
+  ).join('');
+}
+
 function renderHist() {
+  renderGradeStats();
   const el = document.getElementById('hist-list');
   const q = getSearchQuery();
   let items = history.slice().reverse().map((item,i)=>({item,ri:history.length-1-i}));
