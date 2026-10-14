@@ -130,6 +130,7 @@ select{resize:none;cursor:pointer;-webkit-appearance:none;appearance:none;paddin
 .score-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:22px;display:flex;flex-direction:column;gap:18px}
 .sc-top{display:flex;align-items:flex-start;gap:16px}
 .sc-badge{font-family:var(--mono);font-size:32px;font-weight:600;width:66px;height:66px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bAp{background:#001a0a;color:#00ff88;border:1px solid #00cc66}
 .bA{background:#052e16;color:#4ade80;border:1px solid #166534}
 .bB{background:#1c3a08;color:#86efac;border:1px solid #166534}
 .bC{background:#1a1000;color:#facc15;border:1px solid #713f12}
@@ -1004,7 +1005,7 @@ async function evalJob() {
 function renderScore(d) {
   const idx=selIdx!==null?selIdx:history.length-1;
   const item=history[idx]||d;
-  const gc={A:'bA',B:'bB',C:'bC',D:'bD',F:'bF'};
+  const gc={'A+':'bAp',A:'bA',B:'bB',C:'bC',D:'bD',F:'bF'};
 
   const dims=(d.dimensions||[]).map(dim=>{
     const p=Math.round(dim.score);
@@ -1094,6 +1095,7 @@ function renderScore(d) {
           </div>
         </div>
         <div class="sc-actions">
+          ${d.grade==='A+'?`<button class="btn btn-sm" style="background:#001a0a;border-color:#00cc66;color:#00ff88" onclick="genResume(${idx})" id="resume-btn"><span class="full-label">Generate Resume</span><span class="short-label">Resume</span></button>`:''}
           <button class="btn btn-sm btn-ghost" onclick="downloadSummaryPdf(${idx})" title="Download a PDF summary of this application"><span class="full-label">Download Summary</span><span class="short-label">Summary</span></button>
           <button class="${appliedBtnClass}" onclick="toggleApplied(${idx})"><span class="full-label">${appliedBtnLabelFull}</span><span class="short-label">${appliedBtnLabelShort}</span></button>
         </div>
@@ -1182,6 +1184,255 @@ async function genQA(){
   }
   catch(e){alert('Error: '+e.message);}
   finally{setLoad('qa',false);}
+}
+
+// TAILORED RESUME GENERATOR
+async function genResume(idx) {
+  const item = history[idx];
+  if (!item) return;
+  const btn = document.getElementById('resume-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+
+  try {
+    const jd = item.jd || '';
+    let ci = item.companyInfo;
+    if (!ci) { await lookupCompany(idx); ci = history[idx].companyInfo; }
+    const companyCtx = formatCompanyCtx(ci, item.companyScraped || null);
+
+    const prompt = `HARD RULE: Never use an em dash (—) anywhere. Use periods, commas, or colons instead.
+
+You are tailoring Nick Newhart's resume for a specific A+ matched job. Return a JSON object with the tailored resume content.
+
+${PROFILE}
+
+JOB DESCRIPTION:
+${jd}
+
+COMPANY CONTEXT:
+${companyCtx || 'No additional context.'}
+
+TASK: Analyze the JD and return ONLY valid JSON in this exact shape:
+{
+  "role_title": "The best fitting title for Nick based on this role (e.g. Senior Product Designer, Senior Brand & Product Designer, Lead Product Designer — adapt to match what the role values most)",
+  "summary": "3 sentences max. First-person. Who Nick is, what makes him a fit for THIS role specifically, and one concrete signal. No em dashes. No buzzwords.",
+  "work_history": [
+    {
+      "company": "LiveBy",
+      "title": "Product & UX/UI Designer",
+      "dates": "06/2023 - 04/2026",
+      "location": "Fully Remote / Boulder, CO",
+      "bullets": ["bullet 1", "bullet 2", "bullet 3", "bullet 4", "bullet 5"]
+    },
+    {
+      "company": "Brandzooka",
+      "title": "UX/UI & Brand Designer",
+      "dates": "06/2021 - 05/2023",
+      "location": "Hybrid Remote / Boulder, CO",
+      "bullets": ["bullet 1", "bullet 2", "bullet 3"]
+    },
+    {
+      "company": "A New Design Co",
+      "title": "Owner & Lead Designer",
+      "dates": "12/2019 - Present",
+      "location": "Denver, CO",
+      "sub": "Freelance, Part-Time (concurrent with full-time roles)",
+      "bullets": ["bullet 1", "bullet 2", "bullet 3"]
+    },
+    {
+      "company": "Green Dragon",
+      "title": "Senior Graphic Designer",
+      "dates": "04/2018 - 04/2020",
+      "location": "Denver, CO",
+      "bullets": ["bullet 1", "bullet 2"]
+    },
+    {
+      "company": "Proterra Advertising",
+      "title": "Graphic Designer",
+      "dates": "07/2013 - 04/2018",
+      "location": "Dallas, TX",
+      "bullets": ["bullet 1"]
+    }
+  ],
+  "skills": {
+    "product_ux": ["skill1", "skill2"],
+    "prototyping_systems": ["skill1", "skill2"],
+    "brand_visual_motion": ["skill1", "skill2"],
+    "process_collab": ["skill1", "skill2"]
+  },
+  "tools": "Comma-separated list of tools, ordered with most-relevant to this role first"
+}
+
+RULES FOR TAILORING:
+- Rewrite bullets to emphasize what THIS role values most. If it's branding-heavy, lead with branding bullets. If design systems, lead with systems. If AI, highlight AI products.
+- Keep bullets factual — use Nick's REAL experience and stats. Max 25 words each. Strong action verbs. No buzzwords.
+- Reorder skills categories to surface the most relevant first — if the role is brand-heavy, put Brand/Visual/Motion first.
+- Adapt the title to match the seniority and flavor of the role (Senior Brand Designer, Lead Product Designer, etc.) but keep it truthful.
+- Do NOT invent stats or projects not in the PROFILE.
+- Never reference Scout.
+- Return ONLY the JSON object, no markdown fences.`;
+
+    const raw = await call(prompt, 2000);
+    const data = JSON.parse(raw.replace(/```json|```/g, '').trim());
+
+    // Build the resume HTML
+    const resumeHtml = buildResumeHtml(data, item);
+    const win = window.open('', '_blank');
+    win.document.write(resumeHtml);
+    win.document.close();
+  } catch(e) {
+    alert('Resume generation failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate Resume'; }
+  }
+}
+
+function buildResumeHtml(data, item) {
+  const wh = (data.work_history || []).map(job => {
+    const bullets = (job.bullets || []).map(b => `<li><span>${b}</span></li>`).join('');
+    const subLine = job.sub ? `<p class="job-sub">${job.sub}</p>` : '';
+    return `<div class="job">
+      <p class="job-title-line"><span class="job-co">${job.company} / </span><span class="job-role">${job.title}</span></p>
+      ${subLine}
+      <p class="job-dates">${job.dates}${job.location ? ', ' + job.location : ''}</p>
+      <ul class="job-bullets">${bullets}</ul>
+    </div>`;
+  }).join('');
+
+  const skillSections = [
+    { label: 'Product & UX', key: 'product_ux' },
+    { label: 'Prototyping & Systems', key: 'prototyping_systems' },
+    { label: 'Brand, Visual & Motion', key: 'brand_visual_motion' },
+    { label: 'Process & Collaboration', key: 'process_collab' },
+  ];
+  // Reorder: put longest/most relevant first based on what claude returned
+  const skillsHtml = skillSections.map(s => {
+    const items = data.skills?.[s.key] || [];
+    if (!items.length) return '';
+    return `<div class="skill-group"><p class="skill-label"><strong>${s.label}:</strong> ${items.join(' • ')}</p></div>`;
+  }).join('');
+
+  const summary = data.summary ? `<div class="summary-section"><p class="summary-text">${data.summary}</p></div>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Resume — Nick Newhart${item?.role_title ? ' — ' + item.role_title : ''}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+@page{size:letter;margin:0}
+body{font-family:'Work Sans',sans-serif;background:#fff;color:#37363d;width:612px;margin:0 auto;padding:0}
+.page{padding:40px;width:612px;min-height:792px;position:relative}
+
+/* HEADER */
+.name{font-size:25px;font-weight:600;color:#37363d;letter-spacing:-0.3px;margin-bottom:4px}
+.role-title{font-size:19px;font-weight:600;background:linear-gradient(97deg,#6d7cff 3%,#b4bae8 97%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px}
+.contact-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:10px}
+.contact-item{font-size:7px;font-weight:500;color:#37363d;display:flex;align-items:center;gap:3px}
+.contact-item a{color:#37363d;text-decoration:none}
+.divider{border:none;border-top:1px solid #e0e0e0;margin:10px 0}
+
+/* SUMMARY */
+.summary-section{margin-bottom:10px}
+.summary-text{font-size:8.5px;font-weight:500;color:#555;line-height:1.6}
+
+/* BODY TWO-COL */
+.body{display:flex;gap:12px;flex:1}
+.col-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.col-side{width:178px;flex-shrink:0;display:flex;flex-direction:column;gap:14px}
+
+/* JOBS */
+.job{display:flex;flex-direction:column;gap:5px}
+.job-title-line{font-size:12px;font-weight:400;color:#37363d}
+.job-co{font-weight:600}
+.job-role{font-weight:400}
+.job-sub{font-size:10px;font-weight:500;color:#666d7a;line-height:1.6}
+.job-dates{font-size:10px;font-weight:500;color:#bac1cd;line-height:1.6}
+.job-bullets{list-style:disc;padding-left:12px}
+.job-bullets li{font-size:8px;font-weight:500;color:#666d7a;line-height:12px;margin-bottom:0}
+.job-bullets li span{display:inline}
+
+/* SIDEBAR */
+.side-label{font-size:10px;font-weight:400;color:#666d7a;letter-spacing:-0.4px;line-height:16px;font-family:inherit}
+.edu-item,.cert-item{margin-bottom:8px}
+.edu-school,.cert-org{font-size:8px;font-weight:600;color:#37363d;line-height:1.5}
+.edu-degree,.cert-name{font-size:8px;font-weight:500;color:#666d7a;line-height:1.5}
+.edu-date,.cert-date{font-size:8px;font-weight:500;color:#bac1cd;line-height:1.5}
+.skill-group{margin-bottom:4px}
+.skill-label{font-size:8px;font-weight:500;color:#666d7a;line-height:12px}
+.skill-label strong{font-weight:600;color:#37363d}
+.tools-text{font-size:8px;font-weight:500;color:#666d7a;line-height:1.5;letter-spacing:-0.32px}
+
+/* PRINT */
+@media print{
+  body{width:612px}
+  .page{padding:40px}
+  .no-print{display:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Print button (hidden on print) -->
+  <div class="no-print" style="position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:99">
+    <button onclick="window.print()" style="font-family:monospace;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:9px 18px;border-radius:8px;border:1px solid #00cc66;background:#001a0a;color:#00ff88;cursor:pointer">Print / Save PDF</button>
+  </div>
+
+  <!-- HEADER -->
+  <p class="name">Nick Newhart</p>
+  <p class="role-title">${data.role_title || 'Senior Product Designer'}</p>
+  <div class="contact-row">
+    <span class="contact-item">817-938-1844</span>
+    <span class="contact-item">nicknewhart@gmail.com</span>
+    <span class="contact-item"><a href="https://nicknewhart.com">nicknewhart.com</a></span>
+    <span class="contact-item"><a href="https://github.com/nicknewhart">github.com/nicknewhart</a></span>
+    <span class="contact-item"><a href="https://linkedin.com/in/nicknewhart2332">linkedin.com/in/nicknewhart2332</a></span>
+  </div>
+  <hr class="divider">
+
+  ${summary}
+
+  <!-- BODY -->
+  <div class="body">
+    <div class="col-main">${wh}</div>
+    <div class="col-side">
+      <div>
+        <p class="side-label">Education</p>
+        <div class="edu-item" style="margin-top:6px">
+          <p class="edu-school">General Assembly</p>
+          <p class="edu-degree">Advanced UX Design</p>
+          <p class="edu-date">07/2019 - 09/2019</p>
+        </div>
+        <div class="edu-item">
+          <p class="edu-school">University of North Texas</p>
+          <p class="edu-degree">BA Interdisciplinary Design</p>
+          <p class="edu-date">01/2012 - 01/2015</p>
+        </div>
+      </div>
+      <div>
+        <p class="side-label">Certifications</p>
+        <div class="cert-item" style="margin-top:6px">
+          <p class="cert-org">Anthropic</p>
+          <p class="cert-name">Claude Code in Action</p>
+          <p class="cert-date">04/2026</p>
+        </div>
+      </div>
+      <div>
+        <p class="side-label">Skills</p>
+        <div style="margin-top:6px">${skillsHtml}</div>
+      </div>
+      <div>
+        <p class="side-label">Tools</p>
+        <p class="tools-text" style="margin-top:6px">${data.tools || 'Figma, Figma Make, Miro, Illustrator, After Effects, InDesign, Photoshop, GitHub, Vercel, Webflow, Jira, Maze, Notion, Asana, Claude, Lovable, OpenAI'}</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
 }
 
 // PDF DOWNLOAD
