@@ -1276,9 +1276,12 @@ RULES FOR TAILORING:
 
     // Build the resume HTML
     const resumeHtml = buildResumeHtml(data, item);
-    const win = window.open('', '_blank');
-    win.document.write(resumeHtml);
-    win.document.close();
+    const blob = new Blob([resumeHtml], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   } catch(e) {
     alert('Resume generation failed: ' + e.message);
   } finally {
@@ -1552,10 +1555,12 @@ ${item.notes ? `<div class="section">
 
 </body></html>`;
 
-  const win = window.open('', '_blank');
-  win.document.write(html);
-  win.document.close();
-  win.onload = () => { win.focus(); win.print(); };
+  const blob2 = new Blob([html], {type:'text/html'});
+  const url2 = URL.createObjectURL(blob2);
+  const a2 = document.createElement('a');
+  a2.href = url2; a2.target = '_blank'; a2.rel = 'noopener';
+  document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
+  setTimeout(() => URL.revokeObjectURL(url2), 10000);
 }
 
 function downloadCLPdf(){
@@ -1576,10 +1581,12 @@ function downloadCLPdf(){
 <div class="meta">${dateStr}${company?' &nbsp;·&nbsp; '+company:''}${role?' &nbsp;·&nbsp; '+role:''}</div>
 <div class="body">${paragraphs}</div>
 </body></html>`;
-  const win=window.open('','_blank');
-  win.document.write(html);
-  win.document.close();
-  win.onload=()=>{win.focus();win.print();};
+  const blob3 = new Blob([html], {type:'text/html'});
+  const url3 = URL.createObjectURL(blob3);
+  const a3 = document.createElement('a');
+  a3.href = url3; a3.target = '_blank'; a3.rel = 'noopener';
+  document.body.appendChild(a3); a3.click(); document.body.removeChild(a3);
+  setTimeout(() => URL.revokeObjectURL(url3), 10000);
 }
 
 // API
