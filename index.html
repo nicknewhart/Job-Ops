@@ -509,11 +509,31 @@ WORK HISTORY (accurate, chronological, use this exact framing):
 EXPERIENCE FRAMING RULES: For SaaS/product/UX specifically: "about 6 years" or "nearly 6 years." For total design career: "12 years" or "over a decade." Never mix these framings.
 WRITING STYLE: First person. ABSOLUTELY NO EM DASHES (—) ANYWHERE, EVER — use periods, commas, or colons instead. No corporate fluff. Short paragraphs. Direct sentences. Conversational but professional.`;
 
-const SCORE_SYS = `You are a job fit evaluator for Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nEvaluate the job description and return ONLY valid JSON:\n{"role_title":"string","company":"string","verdict":"APPLY|MAYBE|SKIP","grade":"A|B|C|D|F","salary":"string or null","location":"string or null","summary":"2-3 honest sentences","dimensions":[{"name":"Role Alignment","score":0,"note":"brief"},{"name":"Skill Match","score":0,"note":"brief"},{"name":"Location / Remote","score":0,"note":"brief"},{"name":"Seniority Level","score":0,"note":"brief"},{"name":"Industry Fit","score":0,"note":"brief"},{"name":"Comp Signal","score":0,"note":"brief or not listed"}],"strengths":["..."],"gaps":["..."],"highlights":["..."]}\n\nFor "salary": extract any mentioned comp range exactly as written, or null. For "location": extract job location as short label e.g. "Remote", "Austin TX", "London UK", "EU Remote", "Hybrid NYC". If not mentioned use null.\nRULES: Never penalize for app/mobile/consumer roles. Location 90-100 if remote-friendly or in target cities (Austin TX, Nashville TN, Raleigh-Durham NC, Chicago IL, San Francisco CA, San Diego CA, or EU/Portugal). Grade A=strong, B=good minor gaps, C=possible gaps, D=reach, F=skip. Verdict: APPLY for A/B, MAYBE for C, SKIP for D/F. COMP SIGNAL RULE: $100k-$120k USD is an acceptable range — do NOT flag it as low or a concern. Only flag comp as a concern if it is clearly below $100k or explicitly below market for senior IC roles. Return ONLY JSON.`;
+const SCORE_SYS = `You are a job fit evaluator for Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nEvaluate the job description and return ONLY valid JSON:\n{"role_title":"string","company":"string","verdict":"APPLY|MAYBE|SKIP","grade":"A+|A|B|C|D|F","salary":"string or null","location":"string or null","summary":"2-3 honest sentences","dimensions":[{"name":"Role Alignment","score":0,"note":"brief"},{"name":"Skill Match","score":0,"note":"brief"},{"name":"Location / Remote","score":0,"note":"brief"},{"name":"Seniority Level","score":0,"note":"brief"},{"name":"Industry Fit","score":0,"note":"brief"},{"name":"Comp Signal","score":0,"note":"brief or not listed"}],"strengths":["..."],"gaps":["..."],"highlights":["..."]}\n\nFor "salary": extract any mentioned comp range exactly as written, or null. For "location": extract job location as short label e.g. "Remote", "Austin TX", "London UK", "EU Remote", "Hybrid NYC". If not mentioned use null.\nRULES: Never penalize for app/mobile/consumer roles. Location 90-100 if remote-friendly or in target cities (Austin TX, Nashville TN, Raleigh-Durham NC, Chicago IL, San Francisco CA, San Diego CA, or EU/Portugal). Grade A+=perfect match (role aligns exactly with resume, nice-to-haves like branding/motion/Figma/design systems are called out and Nick has them all), A=strong fit, B=good with minor gaps, C=possible but notable gaps, D=reach, F=skip. Verdict: APPLY for A+/A/B, MAYBE for C, SKIP for D/F. Award A+ only when the role is an unusually precise match across ALL dimensions AND explicitly values extras that map directly to Nick's bonus skills (branding background, motion design, Figma expertise, design systems, AI product experience, Claude Code cert). COMP SIGNAL RULE: $100k-$120k USD is an acceptable range — do NOT flag it as low or a concern. Only flag comp as a concern if it is clearly below $100k or explicitly below market for senior IC roles. Return ONLY JSON.`;
 
-const COMPANY_PROMPT = company => `Find the website and a contact/careers email for "${company}". Return ONLY valid JSON: {"website":"string or null","careers_email":"string or null","careers_page":"string or null"}. Use null if not found. Return ONLY the JSON object.`;
+const COMPANY_PROMPT = company => `Research the company "${company}" and return ONLY valid JSON with these fields:
+{
+  "website": "string or null",
+  "careers_email": "string or null",
+  "careers_page": "string or null",
+  "what_they_do": "1-2 sentences: what the company actually does, their core product or service",
+  "mission": "their stated mission or the problem they exist to solve, in plain language",
+  "values_vibe": "2-3 sentences: what the company culture and values are known for — what they stand for, what kind of team they are, what they care about beyond profit",
+  "why_it_matters": "1 sentence: why this company's work is meaningful or interesting to someone who genuinely cares about it"
+}
+Use null for any field you cannot find. Return ONLY the JSON object, no markdown.`;
 
-const clPrompt = (jd,tone,len,region) => `HARD RULE, NON-NEGOTIABLE: Never use an em dash (\u2014) anywhere in your output, under any circumstance. If you would normally use one, use a period, comma, or colon instead. Check your output before finishing and remove any em dash you find.\n\nWrite a cover letter FOR Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nJD: ${jd}\nTONE: ${tone}\nLENGTH: ${len==='short'?'3 paragraphs':len==='standard'?'4 paragraphs':'5 paragraphs'}\nROLE REGION: ${region==='eu'?'EU role':'US role'}\n\nOpen with a specific hook — NOT a statement about the company being interesting, NOT "I am writing to apply", NOT enthusiasm about the role. Start with a real, concrete detail: a result, a contrast, a specific design decision. Reference real projects by name. NEVER mention Scout. For AI product experience: roam. first, then Systemly, then Spotter/Job Ops/Orion if more relevant. For professional SaaS/enterprise work: Brandzooka or LiveBy. Match the project to what the role values. Speak to company context. Confident close. Use "Hi [Company] team,". Follow Nick's writing style.
+function formatCompanyCtx(info) {
+  if (!info) return '';
+  const parts = [];
+  if (info.what_they_do) parts.push('What they do: ' + info.what_they_do);
+  if (info.mission) parts.push('Mission: ' + info.mission);
+  if (info.values_vibe) parts.push('Culture/values: ' + info.values_vibe);
+  if (info.why_it_matters) parts.push('Why it matters: ' + info.why_it_matters);
+  return parts.join('\n');
+}
+
+const clPrompt = (jd,tone,len,region,companyCtx) => `HARD RULE, NON-NEGOTIABLE: Never use an em dash (\u2014) anywhere in your output, under any circumstance. If you would normally use one, use a period, comma, or colon instead. Check your output before finishing and remove any em dash you find.\n\nWrite a cover letter FOR Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nJD: ${jd}\nTONE: ${tone}\nLENGTH: ${len==='short'?'3 paragraphs':len==='standard'?'4 paragraphs':'5 paragraphs'}\nROLE REGION: ${region==='eu'?'EU role':'US role'}\n${companyCtx?'\nCOMPANY CONTEXT (use this to write with genuine understanding of the company):\n'+companyCtx:''}\n\nOpen with a specific hook — NOT a statement about the company being interesting, NOT "I am writing to apply", NOT enthusiasm about the role. Start with a real, concrete detail: a result, a contrast, a specific design decision. Reference real projects by name. NEVER mention Scout. For AI product experience: roam. first, then Systemly, then Spotter/Job Ops/Orion if more relevant. For professional SaaS/enterprise work: Brandzooka or LiveBy. Match the project to what the role values.\n\nCOMPANY EMPATHY RULE: Use the company context above to show genuine understanding of what they do and why it matters. Reference their actual mission or product in a way that feels personal, not performative. If Nick has a real personal connection to what they do (fitness, travel, design tools, AI, real estate, etc.) — draw that connection explicitly and authentically. Do not manufacture enthusiasm; only draw the connection if it genuinely fits. Confident close. Use "Hi [Company] team,". Follow Nick\'s writing style.
 BANNED WORDS AND PHRASES (never use any of these, ever):
 - Words: delve, tapestry, multifaceted, nuanced (when used as filler), landscape (metaphorical), comprehensive, pivotal, crucial, leverage (verb), robust, streamline, utilize, facilitate, endeavor, paramount
 - Openers: "Certainly!", "Sure!", "I'd be happy to", "It's important to remember", "Due to the fact that", "In the realm of", "It's worth noting", "This problem is genuinely interesting", "What excites me about", "I'm passionate about", "I thrive in", "I'm excited by the opportunity"
@@ -526,12 +546,12 @@ VOICE RULES:
 - Lead with the most concrete, specific thing. Cut the setup.
 - First person. Short paragraphs. Vary sentence length. No hedging. No throat-clearing.\n\nLOCATION FRAMING (critical, follow exactly): If ROLE REGION is "US role", say he is based in the Dallas area or DFW, Texas (do not mention Lisbon or Portugal at all). If ROLE REGION is "EU role", say he is based in Lisbon, Portugal (do not mention Texas at all). For remote roles under US region, mention he is based in DFW and open to remote. Never mix both locations in the same letter. Pick exactly one based on ROLE REGION and use it naturally once, early in the letter or in the closing.\n\nCRITICAL: if mentioning years of experience in SaaS, product, or UX design specifically, say "about 6 years" or "nearly 6 years" \u2014 never 10. If referring to total design career broadly, "over a decade" is fine. Double check this before output. Output letter text only.`;
 const rbPrompt = jd => `HARD RULE, NON-NEGOTIABLE: Never use an em dash (\u2014) anywhere in your output, under any circumstance. If you would normally use one, use a period, comma, or colon instead. Check your output before finishing and remove any em dash you find.\n\nWrite tailored resume bullets FOR Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nJD: ${jd}\n\n6-8 bullets from Nick's REAL experience ordered by what this role values. Strong action verbs. Real metrics where they exist. Max 20 words each. Each starts with (•). Use plain language — no buzzwords like "leveraged", "facilitated", "streamlined", "robust", "pivotal". Output only bullets.`;
-const qaPrompt = (jd,qs) => `HARD RULE, NON-NEGOTIABLE: Never use an em dash (\u2014) anywhere in your output, under any circumstance. If you would normally use one, use a period, comma, or colon instead. Check your output before finishing and remove any em dash you find.\n\nAnswer application questions FOR Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nJD: ${jd||'(none)'}\n\nQUESTIONS:\n${qs.map((q,i)=>`${i+1}. ${q}`).join('\n')}\n\nREAL EXPERIENCE RULE:
+const qaPrompt = (jd,qs,companyCtx) => `HARD RULE, NON-NEGOTIABLE: Never use an em dash (\u2014) anywhere in your output, under any circumstance. If you would normally use one, use a period, comma, or colon instead. Check your output before finishing and remove any em dash you find.\n\nAnswer application questions FOR Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nJD: ${jd||'(none)'}\n${companyCtx?'\nCOMPANY CONTEXT (use when answering questions about interest in the company or role):\n'+companyCtx:''}\n\nQUESTIONS:\n${qs.map((q,i)=>`${i+1}. ${q}`).join('\n')}\n\nREAL EXPERIENCE RULE:
 - NEVER mention Scout. It does not exist.
 - For questions about AI-driven products, AI tools, or AI product experience: use roam. first (primary AI project — solo, shipped, active users), then Systemly if relevant, then Spotter, Job Ops, or Orion if they better fit the question. Prefer roam. and Systemly as the default AI project references.
 - For questions about a product designed from concept through launch that Nick personally owned: use Brandzooka or LiveBy (his real professional roles with real deliverables). Do not invent generic examples.
 - Match the project to the question. If the question is about B2B SaaS or enterprise design, use Brandzooka or LiveBy. If it's about AI, consumer products, or solo shipped work, use roam. and/or Systemly first.
-- Pull specific details from PROFILE above — real metrics, real decisions, real scope.\n\nVOICE AND OPENING RULES (follow strictly):\n- Write the way someone talks in a strong interview: direct, occasionally self-aware, no throat-clearing.\n- NEVER open any answer with a statement about finding the problem interesting, the company compelling, or the role exciting. That opener is banned. Start mid-thought, with a specific detail, a contrast, or the most interesting part of the answer.\n- Do not open with "I've always..." or "What drew me to..." or "The thing that excites me about..."\n- Do not use filler phrases like "I'm passionate about", "I thrive in", "I'm excited by the opportunity to"\n- Lead with substance. The hook is the most specific, honest thing Nick can say, not a compliment to the company.\n- 2-5 sentences each. First person. Conversational but not casual. No hedging.\n\nFormat:\nQ1: [question]\nA1: [answer]\n\nQ2: [question]\nA2: [answer]`;
+- Pull specific details from PROFILE above — real metrics, real decisions, real scope.\n\nCOMPANY EMPATHY RULE (for questions about "why this company", "why this role", "what attracts you", or similar):\n- Use the COMPANY CONTEXT above to answer with genuine specificity about what the company does and why it resonates.\n- If Nick has a real personal connection to the company\'s domain (fitness, travel, design tools, AI, real estate, consumer apps, etc.) — make that connection explicit and concrete. Example: a fitness company, mention that he trains 4 days a week and understands what motivates people in that space. A travel company, he built a travel app personally.\n- Never say "I\'m passionate about your mission" or generic enthusiasm phrases. Instead say WHY specifically, grounded in real experience or genuine interest.\n- If there is no obvious personal connection, speak to what makes the company\'s work meaningful or well-executed — be specific, not generic.\n\nVOICE AND OPENING RULES (follow strictly):\n- Write the way someone talks in a strong interview: direct, occasionally self-aware, no throat-clearing.\n- NEVER open any answer with a statement about finding the problem interesting, the company compelling, or the role exciting. That opener is banned. Start mid-thought, with a specific detail, a contrast, or the most interesting part of the answer.\n- Do not open with "I've always..." or "What drew me to..." or "The thing that excites me about..."\n- Do not use filler phrases like "I'm passionate about", "I thrive in", "I'm excited by the opportunity to"\n- Lead with substance. The hook is the most specific, honest thing Nick can say, not a compliment to the company.\n- 2-5 sentences each. First person. Conversational but not casual. No hedging.\n\nFormat:\nQ1: [question]\nA1: [answer]\n\nQ2: [question]\nA2: [answer]`;
 
 // STATE
 let history = JSON.parse(localStorage.getItem('jo_hist') || '[]');
@@ -724,7 +744,7 @@ function renderDrawerHist(){
     const dotClass=item.applied?' on':'';
     const dateStr=item.appliedDate||(item.ts?new Date(item.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'');
     return `<div class="hist-item${selIdx===ri?' on':''}${appliedClass}" onclick="selHistDrawer(${ri})">
-      <div class="hgrade h${item.grade}">${item.grade}</div>
+      <div class="hgrade h${item.grade==='A+'?'Ap':item.grade}">${item.grade}</div>
       <div class="hinfo">
         <div class="htitle">${item.role_title}</div>
         <div class="hco">${item.company}</div>
@@ -786,12 +806,12 @@ function jumpToExisting(){
 function renderGradeStats(){
   const el=document.getElementById('grade-stats');
   if(!el) return;
-  const counts={A:0,B:0,C:0,D:0,F:0};
+  const counts={'A+':0,A:0,B:0,C:0,D:0,F:0};
   history.forEach(item=>{ if(counts[item.grade]!==undefined) counts[item.grade]++; });
   const total=Object.values(counts).reduce((a,b)=>a+b,0);
   if(!total){ el.innerHTML=''; return; }
   el.innerHTML=Object.entries(counts).map(([g,n])=>
-    `<div class="gstat gs${g}" title="${n} ${g}-grade role${n!==1?'s':''}"><span>${g}</span><span class="gstat-count">${n}</span></div>`
+    `<div class="gstat gs${g==='A+'?'Ap':g}" title="${n} ${g}-grade role${n!==1?'s':''}"><span>${g}</span><span class="gstat-count">${n}</span></div>`
   ).join('');
 }
 
@@ -809,7 +829,7 @@ function renderHist() {
     const dateStr=item.appliedDate||( item.ts?new Date(item.ts).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'');
     const locClass = item.location ? (item.location.toLowerCase().includes('remote') ? ' remote' : item.location.match(/germany|netherlands|spain|portugal|uk|london|berlin|amsterdam|eu|europe/i) ? ' eu' : item.location.match(/tx|tn|nc|il|ca|austin|nashville|raleigh|chicago|san francisco|san diego|us|usa/i) ? ' us' : '') : '';
     return `<div class="hist-item${selIdx===ri?' on':''}${appliedClass}" onclick="selHist(${ri})">
-      <div class="hgrade h${item.grade}">${item.grade}</div>
+      <div class="hgrade h${item.grade==='A+'?'Ap':item.grade}">${item.grade}</div>
       <div class="hinfo">
         <div class="htitle">${item.role_title}</div>
         <div class="hco">${item.company}</div>
@@ -1095,11 +1115,17 @@ async function genCL(){
   setLoad('cl',true);document.getElementById('cl-wrap').classList.remove('on');
   const region=document.getElementById('region')?.value||'us';
   try{
-    const txt=await call(clPrompt(jd,document.getElementById('tone').value,document.getElementById('length').value,region),1100);
+    const hIdx=findHistIdxByJD(jd);
+    let companyCtx='';
+    if(hIdx!==null && history[hIdx]){
+      let ci=history[hIdx].companyInfo;
+      if(!ci){ await lookupCompany(hIdx); ci=history[hIdx].companyInfo; }
+      companyCtx=formatCompanyCtx(ci);
+    }
+    const txt=await call(clPrompt(jd,document.getElementById('tone').value,document.getElementById('length').value,region,companyCtx),1200);
     document.getElementById('cl-out').textContent=txt.trim();
     document.getElementById('cl-out').dataset.region=region;
     document.getElementById('cl-wrap').classList.add('on');
-    const hIdx=findHistIdxByJD(jd);
     if(hIdx!==null && history[hIdx]){ history[hIdx].coverLetter=txt.trim(); history[hIdx].coverLetterRegion=region; persist(); }
   }
   catch(e){alert('Error: '+e.message);}
@@ -1131,10 +1157,16 @@ async function genQA(){
   if(!qs.length){alert('Add at least one question.');return;}
   setLoad('qa',true);document.getElementById('qa-wrap').classList.remove('on');
   try{
-    const txt=await call(qaPrompt(jd,qs),1400);
+    const hIdx=findHistIdxByJD(jd);
+    let companyCtx='';
+    if(hIdx!==null && history[hIdx]){
+      let ci=history[hIdx].companyInfo;
+      if(!ci){ await lookupCompany(hIdx); ci=history[hIdx].companyInfo; }
+      companyCtx=formatCompanyCtx(ci);
+    }
+    const txt=await call(qaPrompt(jd,qs,companyCtx),1500);
     document.getElementById('qa-out').textContent=txt.trim();
     document.getElementById('qa-wrap').classList.add('on');
-    const hIdx=findHistIdxByJD(jd);
     if(hIdx!==null && history[hIdx]){ history[hIdx].qaAnswers=txt.trim(); persist(); }
   }
   catch(e){alert('Error: '+e.message);}
@@ -1149,7 +1181,7 @@ function downloadSummaryPdf(idx){
   const dateStr = item.ts ? new Date(item.ts).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : '';
   const appliedStr = item.applied ? (item.appliedDate||'Yes') : 'Not marked applied';
 
-  const gradeColors = {A:'#166534',B:'#166534',C:'#713f12',D:'#7c2d12',F:'#7f1d1d'};
+  const gradeColors = {'A+':'#00cc66',A:'#166534',B:'#166534',C:'#713f12',D:'#7c2d12',F:'#7f1d1d'};
   const gradeColor = gradeColors[item.grade] || '#444';
 
   const dimsHtml = (item.dimensions||[]).map(d => {
