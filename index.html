@@ -1322,9 +1322,9 @@ function buildResumeHtml(data, item) {
 <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-@page{size:letter;margin:0}
-body{font-family:'Work Sans',sans-serif;background:#fff;color:#37363d;width:612px;margin:0 auto;padding:0}
-.page{padding:40px;width:612px;min-height:792px;position:relative}
+@page{size:8.5in 11in;margin:0.5in 0.52in}
+body{font-family:'Work Sans',sans-serif;background:#fff;color:#37363d;margin:0;padding:0}
+.page{padding:40px;width:100%;max-width:760px;margin:0 auto;min-height:100vh;box-sizing:border-box}
 
 /* HEADER */
 .name{font-size:25px;font-weight:600;color:#37363d;letter-spacing:-0.3px;margin-bottom:4px}
@@ -1367,9 +1367,9 @@ body{font-family:'Work Sans',sans-serif;background:#fff;color:#37363d;width:612p
 
 /* PRINT */
 @media print{
-  body{width:612px}
-  .page{padding:40px}
-  .no-print{display:none}
+  body{margin:0;padding:0}
+  .page{padding:0;max-width:100%;margin:0}
+  .no-print{display:none!important}
 }
 </style>
 </head>
