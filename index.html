@@ -511,26 +511,32 @@ WRITING STYLE: First person. ABSOLUTELY NO EM DASHES (—) ANYWHERE, EVER — us
 
 const SCORE_SYS = `You are a job fit evaluator for Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nEvaluate the job description and return ONLY valid JSON:\n{"role_title":"string","company":"string","verdict":"APPLY|MAYBE|SKIP","grade":"A+|A|B|C|D|F","salary":"string or null","location":"string or null","summary":"2-3 honest sentences","dimensions":[{"name":"Role Alignment","score":0,"note":"brief"},{"name":"Skill Match","score":0,"note":"brief"},{"name":"Location / Remote","score":0,"note":"brief"},{"name":"Seniority Level","score":0,"note":"brief"},{"name":"Industry Fit","score":0,"note":"brief"},{"name":"Comp Signal","score":0,"note":"brief or not listed"}],"strengths":["..."],"gaps":["..."],"highlights":["..."]}\n\nFor "salary": extract any mentioned comp range exactly as written, or null. For "location": extract job location as short label e.g. "Remote", "Austin TX", "London UK", "EU Remote", "Hybrid NYC". If not mentioned use null.\nRULES: Never penalize for app/mobile/consumer roles. Location 90-100 if remote-friendly or in target cities (Austin TX, Nashville TN, Raleigh-Durham NC, Chicago IL, San Francisco CA, San Diego CA, or EU/Portugal). Grade A+=perfect match (role aligns exactly with resume, nice-to-haves like branding/motion/Figma/design systems are called out and Nick has them all), A=strong fit, B=good with minor gaps, C=possible but notable gaps, D=reach, F=skip. Verdict: APPLY for A+/A/B, MAYBE for C, SKIP for D/F. Award A+ only when the role is an unusually precise match across ALL dimensions AND explicitly values extras that map directly to Nick's bonus skills (branding background, motion design, Figma expertise, design systems, AI product experience, Claude Code cert). COMP SIGNAL RULE: $100k-$120k USD is an acceptable range — do NOT flag it as low or a concern. Only flag comp as a concern if it is clearly below $100k or explicitly below market for senior IC roles. Return ONLY JSON.`;
 
-const COMPANY_PROMPT = company => `Research the company "${company}" and return ONLY valid JSON with these fields:
-{
-  "website": "string or null",
-  "careers_email": "string or null",
-  "careers_page": "string or null",
-  "what_they_do": "1-2 sentences: what the company actually does, their core product or service",
-  "mission": "their stated mission or the problem they exist to solve, in plain language",
-  "values_vibe": "2-3 sentences: what the company culture and values are known for — what they stand for, what kind of team they are, what they care about beyond profit",
-  "why_it_matters": "1 sentence: why this company's work is meaningful or interesting to someone who genuinely cares about it"
-}
+const COMPANY_PROMPT = company => `Research the company "${company}" and return ONLY valid JSON:
+{"website":"string or null","careers_email":"string or null","careers_page":"string or null","what_they_do":"1-2 sentences on what they actually do","mission":"their mission or the problem they exist to solve","values_vibe":"2-3 sentences on culture and values","why_it_matters":"1 sentence on why their work is meaningful"}
 Use null for any field you cannot find. Return ONLY the JSON object, no markdown.`;
 
-function formatCompanyCtx(info) {
-  if (!info) return '';
+function formatCompanyCtx(info, scrapedText) {
   const parts = [];
-  if (info.what_they_do) parts.push('What they do: ' + info.what_they_do);
-  if (info.mission) parts.push('Mission: ' + info.mission);
-  if (info.values_vibe) parts.push('Culture/values: ' + info.values_vibe);
-  if (info.why_it_matters) parts.push('Why it matters: ' + info.why_it_matters);
+  if (info) {
+    if (info.what_they_do) parts.push('What they do: ' + info.what_they_do);
+    if (info.mission) parts.push('Mission: ' + info.mission);
+    if (info.values_vibe) parts.push('Culture/values: ' + info.values_vibe);
+    if (info.why_it_matters) parts.push('Why it matters: ' + info.why_it_matters);
+  }
+  if (scrapedText) parts.push('\n--- FROM THEIR WEBSITE ---\n' + scrapedText.slice(0, 2000));
   return parts.join('\n');
+}
+
+async function scrapeCompanyWebsite(website) {
+  try {
+    const res = await fetch('/api/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ website })
+    });
+    const data = await res.json();
+    return data.text || null;
+  } catch { return null; }
 }
 
 const clPrompt = (jd,tone,len,region,companyCtx) => `HARD RULE, NON-NEGOTIABLE: Never use an em dash (\u2014) anywhere in your output, under any circumstance. If you would normally use one, use a period, comma, or colon instead. Check your output before finishing and remove any em dash you find.\n\nWrite a cover letter FOR Nick Newhart, Senior Product Designer.\n\n${PROFILE}\n\nJD: ${jd}\nTONE: ${tone}\nLENGTH: ${len==='short'?'3 paragraphs':len==='standard'?'4 paragraphs':'5 paragraphs'}\nROLE REGION: ${region==='eu'?'EU role':'US role'}\n${companyCtx?'\nCOMPANY CONTEXT (use this to write with genuine understanding of the company):\n'+companyCtx:''}\n\nOpen with a specific hook — NOT a statement about the company being interesting, NOT "I am writing to apply", NOT enthusiasm about the role. Start with a real, concrete detail: a result, a contrast, a specific design decision. Reference real projects by name. NEVER mention Scout. For AI product experience: roam. first, then Systemly, then Spotter/Job Ops/Orion if more relevant. For professional SaaS/enterprise work: Brandzooka or LiveBy. Match the project to what the role values.\n\nCOMPANY EMPATHY RULE: Use the company context above to show genuine understanding of what they do and why it matters. Reference their actual mission or product in a way that feels personal, not performative. If Nick has a real personal connection to what they do (fitness, travel, design tools, AI, real estate, etc.) — draw that connection explicitly and authentically. Do not manufacture enthusiasm; only draw the connection if it genuinely fits. Confident close. Use "Hi [Company] team,". Follow Nick\'s writing style.
@@ -963,6 +969,11 @@ async function lookupCompany(idx) {
     const raw=await call(COMPANY_PROMPT(item.company),300);
     const info=JSON.parse(raw.replace(/```json|```/g,'').trim());
     history[idx].companyInfo=info;
+    // Scrape their website for real mission/values content
+    if (info.website) {
+      const scraped = await scrapeCompanyWebsite(info.website);
+      history[idx].companyScraped = scraped || null;
+    }
     persist();
     if (selIdx===idx) renderScore(history[idx]);
   } catch(e) {
@@ -1120,7 +1131,7 @@ async function genCL(){
     if(hIdx!==null && history[hIdx]){
       let ci=history[hIdx].companyInfo;
       if(!ci){ await lookupCompany(hIdx); ci=history[hIdx].companyInfo; }
-      companyCtx=formatCompanyCtx(ci);
+      companyCtx=formatCompanyCtx(ci, history[hIdx].companyScraped||null);
     }
     const txt=await call(clPrompt(jd,document.getElementById('tone').value,document.getElementById('length').value,region,companyCtx),1200);
     document.getElementById('cl-out').textContent=txt.trim();
@@ -1162,7 +1173,7 @@ async function genQA(){
     if(hIdx!==null && history[hIdx]){
       let ci=history[hIdx].companyInfo;
       if(!ci){ await lookupCompany(hIdx); ci=history[hIdx].companyInfo; }
-      companyCtx=formatCompanyCtx(ci);
+      companyCtx=formatCompanyCtx(ci, history[hIdx].companyScraped||null);
     }
     const txt=await call(qaPrompt(jd,qs,companyCtx),1500);
     document.getElementById('qa-out').textContent=txt.trim();
