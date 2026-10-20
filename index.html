@@ -562,6 +562,20 @@ const qaPrompt = (jd,qs,companyCtx) => `HARD RULE, NON-NEGOTIABLE: Never use an 
 
 // STATE
 let history = JSON.parse(localStorage.getItem('jo_hist') || '[]');
+
+// Auto-purge: remove C, D, F grades older than 30 days on every load
+(function purgeStale() {
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const lowGrades = new Set(['C','D','F']);
+  const before = history.length;
+  history = history.filter(h => {
+    if (!lowGrades.has(h.grade)) return true;
+    const ts = h.timestamp || h.ts || 0;
+    return ts > cutoff;
+  });
+  if (history.length !== before) persist();
+})();
+
 let selIdx = null;
 let qCount = 0;
 let activeFilter = 'all';
@@ -878,7 +892,24 @@ function saveHist(data,jd) {
 }
 
 function persist(){
-  localStorage.setItem('jo_hist',JSON.stringify(history));
+  // Strip heavy fields before writing to stay under the 5MB localStorage quota.
+  // Full data lives in memory (history[]); only lean fields go to disk.
+  const slim = history.map(h => {
+    const {jd, companyScraped, resumeHtml, ...rest} = h;
+    const out = {...rest};
+    if (jd) out.jd = jd.slice(0, 3000);
+    return out;
+  });
+  try {
+    localStorage.setItem('jo_hist', JSON.stringify(slim));
+  } catch(e) {
+    // If still over quota, drop oldest entries until it fits
+    const trimmed = [...slim];
+    while (trimmed.length > 0) {
+      trimmed.shift();
+      try { localStorage.setItem('jo_hist', JSON.stringify(trimmed)); break; } catch(_) {}
+    }
+  }
   if (syncKey) {
     clearTimeout(syncTimeout);
     syncTimeout = setTimeout(saveToSupabase, 1500);
